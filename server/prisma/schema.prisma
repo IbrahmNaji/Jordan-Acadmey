@@ -134,6 +134,10 @@ model Enrollment {
   leadId      String           @unique
   lead        Lead             @relation(fields: [leadId], references: [id])
   course      CourseType
+  courseId    String?
+  courseRef   Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  batchId     String?
+  batch       CourseBatch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
   totalFee    Decimal          @db.Decimal(10, 2)
   paidAmount  Decimal          @default(0) @db.Decimal(10, 2)
   paymentPlan String?
@@ -144,10 +148,13 @@ model Enrollment {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  payments Payment[]
+  payments   Payment[]
+  attendance Attendance[]
 
   @@index([status])
   @@index([course])
+  @@index([courseId])
+  @@index([batchId])
 }
 
 enum EnrollmentStatus {
@@ -304,4 +311,141 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Academy
+// ---------------------------------------------------------------------------
+
+model CourseCategory {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses Course[]
+
+  @@index([isActive])
+}
+
+model Instructor {
+  id        String   @id @default(uuid())
+  fullName  String
+  specialty String?
+  bio       String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses Course[]
+  batches CourseBatch[]
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DeliveryMode {
+  ONSITE
+  ONLINE
+  HYBRID
+}
+
+model Course {
+  id            String       @id @default(uuid())
+  slug          String       @unique
+  title         String
+  shortTitle    String
+  courseType    CourseType
+  categoryId    String?
+  category      CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  instructorId  String?
+  instructor    Instructor?  @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  tagline       String
+  summary       String
+  description   String[]
+  focus         String[]
+  prerequisites String[]     @default([])
+  format        String
+  note          String
+  image         String
+  imageAlt      String
+  deliveryMode  DeliveryMode @default(ONSITE)
+  price         Decimal?     @db.Decimal(12, 2)
+  currency      String       @default("SYP")
+  featured      Boolean      @default(false)
+  sortOrder     Int          @default(0)
+  status        CourseStatus @default(DRAFT)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  batches     CourseBatch[]
+  enrollments Enrollment[]
+
+  @@index([status])
+  @@index([featured])
+  @@index([courseType])
+  @@index([categoryId])
+}
+
+enum BatchStatus {
+  PLANNED
+  OPEN
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model CourseBatch {
+  id           String        @id @default(uuid())
+  courseId     String
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  code         String?
+  title        String?
+  startDate    DateTime?
+  endDate      DateTime?
+  capacity     Int?
+  instructorId String?
+  instructor   Instructor?   @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  status       BatchStatus   @default(PLANNED)
+  deliveryMode DeliveryMode?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  enrollments Enrollment[]
+
+  @@unique([courseId, code])
+  @@index([courseId])
+  @@index([status])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model Attendance {
+  id           String           @id @default(uuid())
+  enrollmentId String
+  enrollment   Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  sessionDate  DateTime         @db.Date
+  status       AttendanceStatus
+  note         String?
+  recordedById String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([enrollmentId, sessionDate])
+  @@index([sessionDate])
 }

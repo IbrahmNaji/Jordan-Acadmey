@@ -12,6 +12,10 @@ export const PERMISSIONS = [
   'users:read',
   'users:write',
   'audit:read',
+  'courses:read',
+  'courses:write',
+  'attendance:read',
+  'attendance:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -32,6 +36,10 @@ export const ROLE_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     'campaigns:write',
     'reports:read',
     'users:read',
+    'courses:read',
+    'courses:write',
+    'attendance:read',
+    'attendance:write',
   ],
   AGENT: [
     'leads:read',
@@ -40,6 +48,9 @@ export const ROLE_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
     'enrollments:write',
     'payments:write',
     'campaigns:read',
+    'courses:read',
+    'attendance:read',
+    'attendance:write',
   ],
 };
 

@@ -41,6 +41,19 @@ const DETAIL_INCLUDE = {
       email: true,
     },
   },
+  courseRef: {
+    select: { id: true, title: true, shortTitle: true, slug: true },
+  },
+  batch: {
+    select: {
+      id: true,
+      code: true,
+      title: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+    },
+  },
   payments: { orderBy: { paidAt: 'desc' as const } },
 };
 
@@ -57,27 +70,128 @@ router.post(
     body: z
       .object({
         leadId: z.string().uuid(),
-        course: courseEnum,
-        totalFee: z.number().positive().max(MONEY_MAX),
+        course: courseEnum.optional(),
+        courseId: z.string().uuid().optional(),
+        batchId: z.string().uuid().optional(),
+        totalFee: z.number().positive().max(MONEY_MAX).optional(),
         paymentPlan: z.string().trim().max(120).optional(),
         startDate: z.coerce.date().optional(),
         endDate: z.coerce.date().optional(),
         notes: z.string().trim().max(2000).optional(),
       })
-      .strict(),
+      .strict()
+      .refine(
+        (value) => Boolean(value.course || value.courseId || value.batchId),
+        { message: 'COURSE_REQUIRED', path: ['courseId'] },
+      ),
   }),
   asyncHandler(async (req, res) => {
-    const { leadId, course, totalFee, paymentPlan, startDate, endDate, notes } =
-      req.body as {
-        leadId: string;
-        course: z.infer<typeof courseEnum>;
-        totalFee: number;
-        paymentPlan?: string;
-        startDate?: Date;
-        endDate?: Date;
-        notes?: string;
-      };
+    const body = req.body as {
+      leadId: string;
+      course?: z.infer<typeof courseEnum>;
+      courseId?: string;
+      batchId?: string;
+      totalFee?: number;
+      paymentPlan?: string;
+      startDate?: Date;
+      endDate?: Date;
+      notes?: string;
+    };
+    const { leadId, paymentPlan, notes } = body;
 
+    let courseId: string | null = null;
+    let batchId: string | null = null;
+    let courseType: z.infer<typeof courseEnum>;
+    let courseTitle: string | undefined;
+    let coursePrice: Prisma.Decimal | null = null;
+    let batchStart: Date | null = null;
+    let batchEnd: Date | null = null;
+
+    if (body.batchId) {
+      const batch = await prisma.courseBatch.findUnique({
+        where: { id: body.batchId },
+        select: {
+          id: true,
+          courseId: true,
+          status: true,
+          capacity: true,
+          startDate: true,
+          endDate: true,
+          course: {
+            select: {
+              id: true,
+              title: true,
+              courseType: true,
+              status: true,
+              price: true,
+            },
+          },
+        },
+      });
+      if (!batch) throw new AppError(404, 'BATCH_NOT_FOUND');
+      if (batch.status !== 'OPEN') throw new AppError(409, 'BATCH_NOT_OPEN');
+      if (batch.course.status !== 'PUBLISHED') {
+        throw new AppError(409, 'COURSE_NOT_AVAILABLE');
+      }
+      if (body.courseId && body.courseId !== batch.courseId) {
+        throw new AppError(400, 'COURSE_BATCH_MISMATCH');
+      }
+      if (body.course && body.course !== batch.course.courseType) {
+        throw new AppError(400, 'COURSE_BATCH_MISMATCH');
+      }
+      if (batch.capacity !== null) {
+        const active = await prisma.enrollment.count({
+          where: { batchId: batch.id, status: { not: 'CANCELLED' } },
+        });
+        if (active >= batch.capacity) throw new AppError(409, 'BATCH_FULL');
+      }
+      courseId = batch.courseId;
+      batchId = batch.id;
+      courseType = batch.course.courseType;
+      courseTitle = batch.course.title;
+      coursePrice = batch.course.price;
+      batchStart = batch.startDate;
+      batchEnd = batch.endDate;
+    } else if (body.courseId) {
+      const course = await prisma.course.findUnique({
+        where: { id: body.courseId },
+        select: {
+          id: true,
+          title: true,
+          courseType: true,
+          status: true,
+          price: true,
+        },
+      });
+      if (!course || course.status !== 'PUBLISHED') {
+        throw new AppError(409, 'COURSE_NOT_AVAILABLE');
+      }
+      if (body.course && body.course !== course.courseType) {
+        throw new AppError(400, 'COURSE_TYPE_MISMATCH');
+      }
+      courseId = course.id;
+      courseType = course.courseType;
+      courseTitle = course.title;
+      coursePrice = course.price;
+    } else {
+      const course = await prisma.course.findFirst({
+        where: { courseType: body.course!, status: 'PUBLISHED' },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        select: { id: true, title: true, courseType: true, price: true },
+      });
+      if (!course) throw new AppError(409, 'COURSE_NOT_AVAILABLE');
+      courseId = course.id;
+      courseType = course.courseType;
+      courseTitle = course.title;
+      coursePrice = course.price;
+    }
+
+    const totalFee =
+      body.totalFee ?? (coursePrice ? Number(coursePrice) : null);
+    if (totalFee === null) throw new AppError(400, 'TOTAL_FEE_REQUIRED');
+
+    const startDate = body.startDate ?? batchStart ?? undefined;
+    const endDate = body.endDate ?? batchEnd ?? undefined;
     if (startDate && endDate && startDate > endDate) {
       throw new AppError(400, 'INVALID_DATE_RANGE');
     }
@@ -100,11 +214,35 @@ router.post(
     if (!lead) throw new AppError(404, 'LEAD_NOT_FOUND');
     if (existing) throw new AppError(409, 'LEAD_ALREADY_ENROLLED');
 
+    const courseLabel = courseTitle ?? COURSE_LABEL[courseType];
+
     const enrollment = await prisma.$transaction(async (tx) => {
+      if (batchId) {
+        // Row lock keeps concurrent enrollments from overselling capacity.
+        await tx.$executeRaw`SELECT id FROM "CourseBatch" WHERE id = ${batchId} FOR UPDATE`;
+        const locked = await tx.courseBatch.findUnique({
+          where: { id: batchId },
+          select: { status: true, capacity: true },
+        });
+        if (!locked || locked.status !== 'OPEN') {
+          throw new AppError(409, 'BATCH_NOT_OPEN');
+        }
+        if (locked.capacity !== null) {
+          const active = await tx.enrollment.count({
+            where: { batchId, status: { not: 'CANCELLED' } },
+          });
+          if (active >= locked.capacity) {
+            throw new AppError(409, 'BATCH_FULL');
+          }
+        }
+      }
+
       const created = await tx.enrollment.create({
         data: {
           leadId,
-          course,
+          course: courseType,
+          courseId,
+          batchId,
           totalFee,
           paymentPlan,
           startDate,
@@ -122,7 +260,7 @@ router.post(
           leadId,
           userId: req.user!.id,
           type: 'ENROLLMENT',
-          content: `تم التسجيل في دورة ${COURSE_LABEL[course]} برسوم ${Number(
+          content: `تم التسجيل في دورة ${courseLabel} برسوم ${Number(
             totalFee,
           ).toLocaleString('en-US')} ل.س`,
         },
@@ -135,14 +273,14 @@ router.post(
       action: 'enrollment.create',
       entityType: 'Enrollment',
       entityId: enrollment.id,
-      summary: `تسجيل جديد في دورة ${COURSE_LABEL[course]}`,
-      metadata: { leadId, course, totalFee },
+      summary: `تسجيل جديد في دورة ${courseLabel}`,
+      metadata: { leadId, course: courseType, courseId, batchId, totalFee },
       ip: requestIp(req),
     });
     await notifyRoles(['ADMIN', 'MANAGER'], {
       type: 'ENROLLMENT_CREATED',
       title: 'تسجيل جديد في دورة',
-      body: `${enrollment.lead?.fullName ?? ''} — ${COURSE_LABEL[course]}`,
+      body: `${enrollment.lead?.fullName ?? ''} — ${courseLabel}`,
       link: '/admin/enrollments',
       entityType: 'Enrollment',
       entityId: enrollment.id,

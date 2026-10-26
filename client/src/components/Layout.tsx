@@ -10,7 +10,9 @@ import {
 import { useAuth } from '../store/auth';
 import {
   BarChart3,
+  BookOpen,
   CalendarClock,
+  ClipboardCheck,
   ExternalLink,
   GraduationCap,
   LayoutDashboard,
@@ -56,6 +58,17 @@ const navigationGroups: { label: string; items: NavItem[] }[] = [
         label: 'التسجيلات والدفعات',
         icon: GraduationCap,
       },
+      {
+        to: '/admin/attendance',
+        label: 'الحضور',
+        icon: ClipboardCheck,
+      },
+      {
+        to: '/admin/academy',
+        label: 'إدارة الأكاديمية',
+        icon: BookOpen,
+        roles: ['ADMIN', 'MANAGER'],
+      },
       { to: '/admin/campaigns', label: 'مصادر التسويق', icon: Megaphone },
     ],
   },
@@ -91,6 +104,8 @@ const PAGE_TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p === '/admin/leads', title: 'العملاء المحتملون' },
   { test: (p) => p === '/admin/follow-ups', title: 'المتابعات المستحقة' },
   { test: (p) => p === '/admin/enrollments', title: 'التسجيلات والدفعات' },
+  { test: (p) => p === '/admin/attendance', title: 'الحضور' },
+  { test: (p) => p === '/admin/academy', title: 'إدارة الأكاديمية' },
   { test: (p) => p === '/admin/campaigns', title: 'مصادر التسويق' },
   { test: (p) => p === '/admin/reports', title: 'التقارير' },
   { test: (p) => p === '/admin/users', title: 'فريق العمل' },

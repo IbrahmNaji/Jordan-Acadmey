@@ -26,6 +26,8 @@ const Enrollments = lazy(() => import('./pages/Enrollments'));
 const Reports = lazy(() => import('./pages/Reports'));
 const UsersPage = lazy(() => import('./pages/Users'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const Academy = lazy(() => import('./pages/Academy'));
+const Attendance = lazy(() => import('./pages/Attendance'));
 
 const CoursesPage = lazy(() => import('./pages/public/CoursesPage'));
 const CourseDetailPage = lazy(() => import('./pages/public/CourseDetailPage'));
@@ -154,6 +156,15 @@ export default function App() {
                 <Route path="follow-ups" element={<FollowUps />} />
                 <Route path="campaigns" element={<Campaigns />} />
                 <Route path="enrollments" element={<Enrollments />} />
+                <Route path="attendance" element={<Attendance />} />
+                <Route
+                  path="academy"
+                  element={
+                    <RequireRole roles={['ADMIN', 'MANAGER']}>
+                      <Academy />
+                    </RequireRole>
+                  }
+                />
                 <Route path="reports" element={<Reports />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route

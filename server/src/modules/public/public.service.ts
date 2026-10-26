@@ -1,6 +1,6 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
-import { findPublicCourse } from '../../content/courses';
 import { createCustomerForPerson } from '../../utils/customer';
 import {
   CONSENT_VERSION,
@@ -16,6 +16,22 @@ const CONTACT_METHOD_LABEL: Record<string, string> = {
   EMAIL: 'بريد إلكتروني',
 };
 
+const PUBLIC_COURSE_SELECT = {
+  slug: true,
+  title: true,
+  shortTitle: true,
+  courseType: true,
+  tagline: true,
+  summary: true,
+  description: true,
+  focus: true,
+  format: true,
+  note: true,
+  image: true,
+  imageAlt: true,
+  featured: true,
+} satisfies Prisma.CourseSelect;
+
 interface InquiryInput {
   fullName: string;
   phone: string;
@@ -28,9 +44,35 @@ interface InquiryInput {
 }
 
 export class PublicService {
+  async listCourses() {
+    return prisma.course.findMany({
+      where: { status: 'PUBLISHED' },
+      select: PUBLIC_COURSE_SELECT,
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async getCourse(slug: string) {
+    const course = await prisma.course.findFirst({
+      where: { slug, status: 'PUBLISHED' },
+      select: PUBLIC_COURSE_SELECT,
+    });
+    if (!course) return null;
+    const related = await prisma.course.findMany({
+      where: { status: 'PUBLISHED', slug: { not: slug } },
+      select: PUBLIC_COURSE_SELECT,
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      take: 3,
+    });
+    return { ...course, related };
+  }
+
   async createInquiry(input: InquiryInput, context: { ip?: string | null } = {}) {
     const course = input.courseSlug
-      ? findPublicCourse(input.courseSlug)
+      ? await prisma.course.findFirst({
+          where: { slug: input.courseSlug, status: 'PUBLISHED' },
+          select: { title: true, courseType: true },
+        })
       : undefined;
     if (input.courseSlug && !course) {
       throw new AppError(400, 'INVALID_COURSE');

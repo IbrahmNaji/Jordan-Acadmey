@@ -4,11 +4,6 @@ import rateLimit from 'express-rate-limit';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { PublicService } from './public.service';
-import {
-  publicCourses,
-  findPublicCourse,
-  relatedCourses,
-} from '../../content/courses';
 import { AppError } from '../../middleware/errorHandler';
 
 const router = Router();
@@ -51,23 +46,22 @@ const inquirySchema = z.object({
   }),
 });
 
-router.get('/courses', (_req, res) => {
-  const items = [...publicCourses]
-    .sort((a, b) => a.order - b.order)
-    .map(({ order: _order, ...course }) => course);
-  res.json({ items });
-});
+router.get(
+  '/courses',
+  asyncHandler(async (_req, res) => {
+    const items = await service.listCourses();
+    res.json({ items });
+  }),
+);
 
-router.get('/courses/:slug', (req, res, next) => {
-  try {
-    const course = findPublicCourse(req.params.slug);
+router.get(
+  '/courses/:slug',
+  asyncHandler(async (req, res) => {
+    const course = await service.getCourse(req.params.slug);
     if (!course) throw new AppError(404, 'COURSE_NOT_FOUND');
-    const { order: _order, ...rest } = course;
-    res.json({ ...rest, related: relatedCourses(course.slug) });
-  } catch (error) {
-    next(error);
-  }
-});
+    res.json(course);
+  }),
+);
 
 router.post(
   '/inquiries',

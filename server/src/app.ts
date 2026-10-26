@@ -16,6 +16,7 @@ import usersRoutes from './modules/users/users.routes';
 import publicRoutes from './modules/public/public.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
 import auditRoutes from './modules/audit/audit.routes';
+import academyRoutes from './modules/academy';
 
 export const app = express();
 
@@ -53,6 +54,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/academy', academyRoutes);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'NOT_FOUND' });

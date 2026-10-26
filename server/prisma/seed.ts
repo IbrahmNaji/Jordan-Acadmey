@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { publicCourses } from '../src/content/courses';
 
 const prisma = new PrismaClient();
 
@@ -84,6 +85,42 @@ async function main() {
     });
   }
   console.log(`✓ ${sources.length} campaign sources ensured`);
+
+  let coursesCreated = 0;
+  for (const course of publicCourses) {
+    const exists = await prisma.course.findUnique({
+      where: { slug: course.slug },
+      select: { id: true },
+    });
+    if (exists) continue;
+    await prisma.course.create({
+      data: {
+        slug: course.slug,
+        title: course.title,
+        shortTitle: course.shortTitle,
+        courseType: course.courseType,
+        tagline: course.tagline,
+        summary: course.summary,
+        description: course.description,
+        focus: course.focus,
+        prerequisites: [],
+        format: course.format,
+        note: course.note,
+        image: course.image,
+        imageAlt: course.imageAlt,
+        deliveryMode: 'ONSITE',
+        price: null,
+        currency: 'SYP',
+        featured: course.featured,
+        sortOrder: course.order,
+        status: 'PUBLISHED',
+      },
+    });
+    coursesCreated += 1;
+  }
+  console.log(
+    `✓ published courses ensured (${coursesCreated} created, ${publicCourses.length} total)`,
+  );
 
   if (process.env.SEED_SAMPLE_DATA === 'true') {
     if (isProduction) {

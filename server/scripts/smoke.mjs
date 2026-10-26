@@ -25,6 +25,9 @@ const prisma = new PrismaClient();
 const createdUserIds = [];
 const createdLeadIds = [];
 const createdCustomerIds = [];
+const createdCourseIds = [];
+const createdBatchIds = [];
+const createdEnrollmentIds = [];
 let smokeMaskedEmail = null;
 let passed = 0;
 const failures = [];
@@ -239,6 +242,252 @@ async function main() {
       console.log('  --  no enrollment present; skipped agent PATCH check');
     }
 
+    console.log('\nAcademy catalog and administration');
+    const publicCourses = await api('GET', '/public/courses');
+    const publicList = Array.isArray(publicCourses.data?.items)
+      ? publicCourses.data.items
+      : [];
+    check(
+      'public catalog served from database',
+      publicCourses.status === 200 && publicList.length >= 4,
+      `status ${publicCourses.status} count ${publicList.length}`,
+    );
+    check(
+      'public catalog exposes no internal fields',
+      publicList.length > 0 &&
+        publicList.every(
+          (course) =>
+            typeof course.slug === 'string' &&
+            typeof course.title === 'string' &&
+            !('status' in course) &&
+            !('price' in course),
+        ),
+      JSON.stringify(publicList[0] ?? null).slice(0, 160),
+    );
+    const seededSlug = publicList[0]?.slug;
+    if (seededSlug) {
+      const seededDetail = await api(
+        'GET',
+        `/public/courses/${encodeURIComponent(seededSlug)}`,
+      );
+      check(
+        'public course detail includes related',
+        seededDetail.status === 200 &&
+          seededDetail.data?.slug === seededSlug &&
+          Array.isArray(seededDetail.data?.related),
+        `status ${seededDetail.status}`,
+      );
+    } else {
+      console.log('  --  no published course present; skipped detail check');
+    }
+
+    const smokeCourseSlug = `smoke-course-${randomBytes(3).toString('hex')}`;
+    const smokeCourseBody = {
+      slug: smokeCourseSlug,
+      title: 'دورة اختبار الدخان',
+      shortTitle: 'اختبار',
+      courseType: 'HYBRID',
+      tagline: 'دورة اختبار مؤقتة تُحذف بعد الفحص',
+      summary: 'بيانات اختبار مؤقتة لا تُعرض للعامة.',
+      description: ['وصف اختباري مؤقت.'],
+      focus: [],
+      format: 'حضوري',
+      note: 'ملاحظة اختبارية.',
+      image: '/images/courses/mechanics.jpg',
+      imageAlt: 'صورة اختبارية',
+      status: 'DRAFT',
+    };
+    const agentCourseWrite = await api('POST', '/academy/courses', {
+      token: agentToken,
+      body: smokeCourseBody,
+    });
+    check(
+      'agent cannot create courses',
+      agentCourseWrite.status === 403,
+      `status ${agentCourseWrite.status}`,
+    );
+    const courseCreate = await api('POST', '/academy/courses', {
+      token: managerToken,
+      body: smokeCourseBody,
+    });
+    if (courseCreate.status === 201) createdCourseIds.push(courseCreate.data.id);
+    check(
+      'manager creates draft course',
+      courseCreate.status === 201 && courseCreate.data?.status === 'DRAFT',
+      `status ${courseCreate.status}`,
+    );
+    const smokeCourseId = courseCreate.data?.id;
+    const publicAfterDraft = await api('GET', '/public/courses');
+    check(
+      'draft course stays out of public catalog',
+      publicAfterDraft.status === 200 &&
+        !(publicAfterDraft.data?.items ?? []).some((c) => c.slug === smokeCourseSlug),
+      `status ${publicAfterDraft.status}`,
+    );
+    check(
+      'draft course detail is 404',
+      (
+        await api('GET', `/public/courses/${encodeURIComponent(smokeCourseSlug)}`)
+      ).status === 404,
+    );
+
+    if (smokeCourseId) {
+      const publish = await api('PATCH', `/academy/courses/${smokeCourseId}`, {
+        token: managerToken,
+        body: { status: 'PUBLISHED' },
+      });
+      check(
+        'manager publishes course',
+        publish.status === 200 && publish.data?.status === 'PUBLISHED',
+        `status ${publish.status}`,
+      );
+      const publicAfterPublish = await api(
+        'GET',
+        `/public/courses/${encodeURIComponent(smokeCourseSlug)}`,
+      );
+      check(
+        'published course becomes public',
+        publicAfterPublish.status === 200 &&
+          publicAfterPublish.data?.slug === smokeCourseSlug,
+        `status ${publicAfterPublish.status}`,
+      );
+
+      const agentBatchWrite = await api('POST', '/academy/batches', {
+        token: agentToken,
+        body: { courseId: smokeCourseId, capacity: 1 },
+      });
+      check(
+        'agent cannot create batches',
+        agentBatchWrite.status === 403,
+        `status ${agentBatchWrite.status}`,
+      );
+      const batchCreate = await api('POST', '/academy/batches', {
+        token: managerToken,
+        body: {
+          courseId: smokeCourseId,
+          code: `SMK-${randomBytes(3).toString('hex')}`,
+          title: 'دفعة اختبار',
+          startDate: '2026-11-01',
+          endDate: '2026-12-01',
+          capacity: 1,
+          status: 'OPEN',
+        },
+      });
+      if (batchCreate.status === 201) createdBatchIds.push(batchCreate.data.id);
+      check(
+        'manager creates open batch',
+        batchCreate.status === 201 && batchCreate.data?.status === 'OPEN',
+        `status ${batchCreate.status}`,
+      );
+      const smokeBatchId = batchCreate.data?.id;
+
+      if (smokeBatchId) {
+        const firstEnrollment = await api('POST', '/enrollments', {
+          token: agentToken,
+          body: {
+            leadId: agentLead.id,
+            courseId: smokeCourseId,
+            batchId: smokeBatchId,
+            totalFee: 1000,
+          },
+        });
+        check(
+          'enrollment binds course and batch',
+          firstEnrollment.status === 201 &&
+            firstEnrollment.data?.courseId === smokeCourseId &&
+            firstEnrollment.data?.batchId === smokeBatchId,
+          `status ${firstEnrollment.status} ${JSON.stringify(firstEnrollment.data).slice(0, 160)}`,
+        );
+        const smokeEnrollmentId = firstEnrollment.data?.id;
+        if (smokeEnrollmentId) createdEnrollmentIds.push(smokeEnrollmentId);
+
+        const secondLeadId = massAssign.data?.id;
+        if (secondLeadId) {
+          const fullBatch = await api('POST', '/enrollments', {
+            token: agentToken,
+            body: {
+              leadId: secondLeadId,
+              courseId: smokeCourseId,
+              batchId: smokeBatchId,
+              totalFee: 1000,
+            },
+          });
+          check(
+            'full batch rejects enrollment',
+            fullBatch.status === 409 && fullBatch.data?.error === 'BATCH_FULL',
+            `status ${fullBatch.status} body ${JSON.stringify(fullBatch.data).slice(0, 120)}`,
+          );
+        }
+
+        const closedPatch = await api('PATCH', `/academy/batches/${smokeBatchId}`, {
+          token: managerToken,
+          body: { status: 'COMPLETED' },
+        });
+        const closedEnrollment = secondLeadId
+          ? await api('POST', '/enrollments', {
+              token: agentToken,
+              body: { leadId: secondLeadId, batchId: smokeBatchId, totalFee: 1000 },
+            })
+          : { status: 0, data: null };
+        check(
+          'closed batch rejects enrollment',
+          closedPatch.status === 200 &&
+            closedEnrollment.status === 409 &&
+            closedEnrollment.data?.error === 'BATCH_NOT_OPEN',
+          `patch ${closedPatch.status} enroll ${closedEnrollment.status}`,
+        );
+
+        if (smokeEnrollmentId) {
+          const sessionDate = '2026-10-26';
+          const saveAttendance = await api('POST', '/academy/attendance', {
+            token: agentToken,
+            body: {
+              batchId: smokeBatchId,
+              sessionDate,
+              records: [{ enrollmentId: smokeEnrollmentId, status: 'PRESENT' }],
+            },
+          });
+          check(
+            'agent records attendance',
+            saveAttendance.status === 200 && saveAttendance.data?.saved === 1,
+            `status ${saveAttendance.status}`,
+          );
+          const sheet = await api(
+            'GET',
+            `/academy/attendance?batchId=${smokeBatchId}&date=${sessionDate}`,
+            { token: agentToken },
+          );
+          const student = (sheet.data?.students ?? []).find(
+            (row) => row.id === smokeEnrollmentId,
+          );
+          check(
+            'attendance sheet reloads saved status',
+            sheet.status === 200 && student?.attendance?.status === 'PRESENT',
+            `status ${sheet.status} student ${JSON.stringify(student ?? null).slice(0, 160)}`,
+          );
+          const mismatch = await api('POST', '/academy/attendance', {
+            token: agentToken,
+            body: {
+              batchId: smokeBatchId,
+              sessionDate,
+              records: [
+                {
+                  enrollmentId: '00000000-0000-4000-8000-000000000000',
+                  status: 'PRESENT',
+                },
+              ],
+            },
+          });
+          check(
+            'attendance rejects foreign enrollment',
+            mismatch.status === 400 &&
+              mismatch.data?.error === 'ATTENDANCE_ENROLLMENT_MISMATCH',
+            `status ${mismatch.status}`,
+          );
+        }
+      }
+    }
+
     console.log('\nUsers administration');
     const created = await api('POST', '/users', {
       token: adminToken,
@@ -408,11 +657,31 @@ async function main() {
     console.log('\nCleanup');
     try {
       if (createdLeadIds.length) {
+        await prisma.attendance.deleteMany({
+          where: { enrollment: { leadId: { in: createdLeadIds } } },
+        });
+        await prisma.payment.deleteMany({
+          where: { enrollment: { leadId: { in: createdLeadIds } } },
+        });
+        await prisma.enrollment.deleteMany({ where: { leadId: { in: createdLeadIds } } });
         await prisma.consentRecord.deleteMany({ where: { leadId: { in: createdLeadIds } } });
-        await prisma.notification.deleteMany({ where: { entityId: { in: createdLeadIds } } });
+        await prisma.notification.deleteMany({
+          where: {
+            OR: [
+              { entityId: { in: createdLeadIds } },
+              { entityId: { in: createdEnrollmentIds } },
+            ],
+          },
+        });
         await prisma.auditLog.deleteMany({ where: { entityId: { in: createdLeadIds } } });
         await prisma.activity.deleteMany({ where: { leadId: { in: createdLeadIds } } });
         await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
+      }
+      if (createdBatchIds.length) {
+        await prisma.courseBatch.deleteMany({ where: { id: { in: createdBatchIds } } });
+      }
+      if (createdCourseIds.length) {
+        await prisma.course.deleteMany({ where: { id: { in: createdCourseIds } } });
       }
       if (createdCustomerIds.length) {
         await prisma.customer.deleteMany({ where: { id: { in: createdCustomerIds } } });
@@ -428,7 +697,9 @@ async function main() {
         });
       }
       console.log(
-        `  removed ${createdLeadIds.length} leads, ${createdCustomerIds.length} customers, ${createdUserIds.length} users`,
+        `  removed ${createdLeadIds.length} leads, ${createdCustomerIds.length} customers, ` +
+          `${createdUserIds.length} users, ${createdCourseIds.length} courses, ` +
+          `${createdBatchIds.length} batches, ${createdEnrollmentIds.length} enrollments`,
       );
     } catch (error) {
       console.error('Cleanup failed:', error.message);

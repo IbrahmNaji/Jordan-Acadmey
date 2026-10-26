@@ -295,7 +295,18 @@ export default function Enrollments() {
                           </p>
                         </Td>
                         <Td className="text-gray-700">
-                          {COURSE_LABEL[enrollment.course] ?? enrollment.course}
+                          <p>
+                            {enrollment.courseRef?.title ??
+                              COURSE_LABEL[enrollment.course] ??
+                              enrollment.course}
+                          </p>
+                          {enrollment.batch && (
+                            <p className="text-xs text-gray-400">
+                              {enrollment.batch.code ??
+                                enrollment.batch.title ??
+                                'دفعة'}
+                            </p>
+                          )}
                         </Td>
                         <Td>
                           <EnrollmentStatusBadge status={enrollment.status} />

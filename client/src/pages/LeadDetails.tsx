@@ -25,6 +25,7 @@ import {
   useSetFollowUp,
 } from '../hooks/useLeads';
 import api from '../api/client';
+import { fetchAcademyCourses, fetchBatches } from '../api/academy';
 import { getApiErrorMessage } from '../lib/apiError';
 import { useAuth } from '../store/auth';
 import type {
@@ -659,7 +660,8 @@ function ActivityComposer({
 }
 
 const enrollSchema = z.object({
-  course: z.enum(['MECHANICS', 'ELECTRICAL', 'DIAGNOSTICS', 'HYBRID']),
+  courseId: z.string().uuid('اختر دورة منشورة'),
+  batchId: z.string().uuid().optional().or(z.literal('')),
   totalFee: z.coerce.number().positive('المبلغ يجب أن يكون أكبر من صفر'),
   paymentPlan: z.string().trim().max(120).optional().or(z.literal('')),
   startDate: z.string().optional().or(z.literal('')),
@@ -685,11 +687,14 @@ function EnrollModal({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<EnrollInput, unknown, EnrollValues>({
     resolver: zodResolver(enrollSchema),
     defaultValues: {
-      course: defaultCourse,
+      courseId: '',
+      batchId: '',
       totalFee: 0,
       paymentPlan: '',
       startDate: '',
@@ -697,17 +702,55 @@ function EnrollModal({
     },
   });
 
+  const coursesQuery = useQuery({
+    queryKey: ['academy', 'courses', 'published'],
+    queryFn: () => fetchAcademyCourses({ status: 'PUBLISHED' }),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const courses = coursesQuery.data ?? [];
+  const selectedCourseId = watch('courseId');
+
+  const batchesQuery = useQuery({
+    queryKey: ['academy', 'batches', 'open', selectedCourseId],
+    queryFn: () =>
+      fetchBatches({ status: 'OPEN', courseId: selectedCourseId }),
+    enabled: open && Boolean(selectedCourseId),
+    staleTime: 30_000,
+  });
+  const batches = batchesQuery.data ?? [];
+
   useEffect(() => {
-    if (open) {
-      reset({
-        course: defaultCourse,
-        totalFee: 0,
-        paymentPlan: '',
-        startDate: '',
-        notes: '',
-      });
-    }
-  }, [open, defaultCourse, reset]);
+    if (!open) return;
+    reset({
+      courseId: '',
+      batchId: '',
+      totalFee: 0,
+      paymentPlan: '',
+      startDate: '',
+      notes: '',
+    });
+  }, [open, reset]);
+
+  useEffect(() => {
+    if (!open || courses.length === 0) return;
+    if (courses.some((course) => course.id === selectedCourseId)) return;
+    const match =
+      courses.find((course) => course.courseType === defaultCourse) ?? courses[0];
+    setValue('courseId', match.id);
+  }, [open, courses, defaultCourse, selectedCourseId, setValue]);
+
+  useEffect(() => {
+    if (!open) return;
+    setValue('batchId', '');
+  }, [selectedCourseId, open, setValue]);
+
+  useEffect(() => {
+    if (!open) return;
+    const course = courses.find((item) => item.id === selectedCourseId);
+    if (!course) return;
+    setValue('totalFee', course.price ? Number(course.price) : 0);
+  }, [open, courses, selectedCourseId, setValue]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -715,10 +758,17 @@ function EnrollModal({
 
   const submit = handleSubmit(async (values) => {
     setError(null);
+    const course = courses.find((item) => item.id === values.courseId);
+    if (!course) {
+      setError('اختر دورة منشورة.');
+      return;
+    }
     try {
       await api.post('/enrollments', {
         leadId,
-        course: values.course,
+        courseId: values.courseId,
+        batchId: values.batchId || undefined,
+        course: course.courseType,
         totalFee: values.totalFee,
         paymentPlan: values.paymentPlan || undefined,
         startDate: values.startDate || undefined,
@@ -757,15 +807,61 @@ function EnrollModal({
               الدورة *
             </span>
             <select
-              {...register('course')}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
+              {...register('courseId')}
+              disabled={coursesQuery.isLoading || courses.length === 0}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500 disabled:bg-gray-50"
             >
-              {COURSE_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
+              <option value="">
+                {coursesQuery.isLoading ? 'جارٍ تحميل الدورات…' : 'اختر دورة'}
+              </option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.title}
                 </option>
               ))}
             </select>
+            {errors.courseId?.message && (
+              <span className="mt-1 block text-xs text-red-600">
+                {errors.courseId.message}
+              </span>
+            )}
+            {coursesQuery.isError && (
+              <span className="mt-1 block text-xs text-gray-500">
+                تعذّر تحميل الدورات المنشورة.
+              </span>
+            )}
+            {!coursesQuery.isLoading && courses.length === 0 && (
+              <span className="mt-1 block text-xs text-amber-700">
+                لا توجد دورات منشورة. انشر دورة من إدارة الأكاديمية أولاً.
+              </span>
+            )}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700">
+              الدفعة (اختياري)
+            </span>
+            <select
+              {...register('batchId')}
+              disabled={!selectedCourseId || batchesQuery.isLoading}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500 disabled:bg-gray-50"
+            >
+              <option value="">بدون دفعة محددة</option>
+              {batches.map((batch) => (
+                <option key={batch.id} value={batch.id}>
+                  {batch.code ?? batch.title ?? 'دفعة'} —{' '}
+                  {batch.enrolledCount}/{batch.capacity ?? '∞'}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[11px] text-gray-500">
+              تُعرض الدفعات المفتوحة فقط، ولا يمكن التسجيل في دفعة مكتملة.
+            </span>
+            {batchesQuery.isError && (
+              <span className="mt-1 block text-xs text-gray-500">
+                تعذّر تحميل الدفعات.
+              </span>
+            )}
           </label>
 
           <label className="block">

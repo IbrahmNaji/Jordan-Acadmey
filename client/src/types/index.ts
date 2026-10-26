@@ -135,6 +135,8 @@ export interface Enrollment {
   id: string;
   leadId: string;
   course: CourseType;
+  courseId?: string | null;
+  batchId?: string | null;
   totalFee: DecimalLike;
   paidAmount: DecimalLike;
   paymentPlan?: string | null;
@@ -150,6 +152,20 @@ export interface Enrollment {
     phone: string;
     whatsapp?: string | null;
     email?: string | null;
+  } | null;
+  courseRef?: {
+    id: string;
+    title: string;
+    shortTitle: string;
+    slug: string;
+  } | null;
+  batch?: {
+    id: string;
+    code?: string | null;
+    title?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    status: BatchStatus;
   } | null;
   payments?: Payment[];
 }
@@ -200,4 +216,116 @@ export interface ReportOverview {
     enrollments: number;
     revenue: DecimalLike;
   }>;
+}
+
+// ── الأكاديمية ──────────────────────────────────────────────
+
+export type CourseStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type DeliveryMode = 'ONSITE' | 'ONLINE' | 'HYBRID';
+export type BatchStatus =
+  | 'PLANNED'
+  | 'OPEN'
+  | 'ONGOING'
+  | 'COMPLETED'
+  | 'CANCELLED';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+
+export interface CourseCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  _count?: { courses: number };
+}
+
+export interface Instructor {
+  id: string;
+  fullName: string;
+  specialty?: string | null;
+  bio?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  isActive: boolean;
+  _count?: { courses: number; batches: number };
+}
+
+export interface AcademyCourseSummary {
+  id: string;
+  slug: string;
+  title: string;
+  shortTitle: string;
+  courseType: CourseType;
+  tagline: string;
+  summary: string;
+  image?: string | null;
+  imageAlt?: string | null;
+  status: CourseStatus;
+  featured: boolean;
+  sortOrder: number;
+  price?: DecimalLike | null;
+  currency: string;
+  deliveryMode: DeliveryMode;
+  categoryId?: string | null;
+  instructorId?: string | null;
+  category?: { id: string; name: string } | null;
+  instructor?: { id: string; fullName: string } | null;
+  _count?: { batches: number; enrollments: number };
+}
+
+export interface AcademyCourse extends AcademyCourseSummary {
+  description: string[];
+  focus: string[];
+  prerequisites: string[];
+  format: string;
+  note: string;
+  categoryId?: string | null;
+  instructorId?: string | null;
+  batches?: AcademyBatch[];
+}
+
+export interface AcademyBatch {
+  id: string;
+  courseId: string;
+  code?: string | null;
+  title?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  capacity?: number | null;
+  instructorId?: string | null;
+  status: BatchStatus;
+  deliveryMode?: DeliveryMode | null;
+  notes?: string | null;
+  enrolledCount: number;
+  course?: {
+    id: string;
+    title: string;
+    slug: string;
+    courseType: CourseType;
+    status: CourseStatus;
+  } | null;
+  instructor?: { id: string; fullName: string } | null;
+}
+
+export interface AttendanceStudent {
+  id: string;
+  status: EnrollmentStatus;
+  lead: { id: string; fullName: string; phone: string };
+  attendance: { status: AttendanceStatus; note?: string | null } | null;
+}
+
+export interface AttendanceSheet {
+  batch: {
+    id: string;
+    code?: string | null;
+    title?: string | null;
+    status: BatchStatus;
+    capacity?: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    course: { id: string; title: string; slug: string };
+  };
+  sessionDate: string;
+  students: AttendanceStudent[];
 }
