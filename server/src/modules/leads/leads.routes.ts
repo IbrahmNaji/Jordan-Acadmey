@@ -1,90 +1,184 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { AppError } from '../../middleware/errorHandler';
 import { LeadsService } from './leads.service';
 
 const router = Router();
 const service = new LeadsService();
 router.use(authenticate);
 
-const createSchema = z.object({
-  fullName: z.string().min(2).max(120),
-  phone: z.string().min(6),
-  whatsapp: z.string().optional(),
-  email: z.string().email().optional(),
-  city: z.string().optional(),
-  age: z.coerce.number().int().min(15).max(90).optional(),
-  interestedIn: z.enum(['MECHANICS', 'ELECTRICAL', 'DIAGNOSTICS', 'HYBRID']).optional(),
-  sourceId: z.string().optional(),
-  assignedToId: z.string().optional(),
-  notes: z.string().max(2000).optional(),
+const uuid = z.string().uuid();
+const courseEnum = z.enum(['MECHANICS', 'ELECTRICAL', 'DIAGNOSTICS', 'HYBRID']);
+const statusEnum = z.enum([
+  'NEW',
+  'CONTACTED',
+  'QUALIFIED',
+  'INTERESTED',
+  'FOLLOW_UP',
+  'ENROLLED',
+  'LOST',
+  'NOT_INTERESTED',
+]);
+
+function leadId(raw: unknown) {
+  const parsed = uuid.safeParse(raw);
+  if (!parsed.success) throw new AppError(404, 'LEAD_NOT_FOUND');
+  return parsed.data;
+}
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(6)
+  .max(24)
+  .regex(/^[\d+\s()-]+$/, 'رقم الهاتف غير صالح');
+
+const createSchema = z
+  .object({
+    fullName: z.string().trim().min(2).max(120),
+    phone: phoneSchema,
+    whatsapp: z.string().trim().max(24).regex(/^[\d+\s()-]*$/).optional(),
+    email: z.string().trim().email().max(160).optional(),
+    city: z.string().trim().max(80).optional(),
+    age: z.coerce.number().int().min(15).max(90).optional(),
+    interestedIn: courseEnum.optional(),
+    sourceId: uuid.optional(),
+    assignedToId: uuid.optional(),
+    notes: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
+const updateSchema = z
+  .object({
+    fullName: z.string().trim().min(2).max(120).optional(),
+    phone: phoneSchema.optional(),
+    whatsapp: z.string().trim().max(24).regex(/^[\d+\s()-]*$/).nullable().optional(),
+    email: z.string().trim().email().max(160).nullable().optional(),
+    city: z.string().trim().max(80).nullable().optional(),
+    age: z.coerce.number().int().min(15).max(90).nullable().optional(),
+    interestedIn: courseEnum.nullable().optional(),
+    sourceId: uuid.nullable().optional(),
+    notes: z.string().trim().max(2000).nullable().optional(),
+  })
+  .strict();
+
+const followUpSchema = z
+  .object({
+    nextFollowUpAt: z.union([z.string().trim().min(1), z.null()]),
+  })
+  .strict();
+
+const listQuerySchema = z.object({
+  status: statusEnum.optional(),
+  assignedToId: uuid.optional(),
+  sourceId: uuid.optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
 router.post(
   '/',
+  requirePermission('leads:write'),
   validate({ body: createSchema }),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await service.create(req.body, req.user!.id));
+    res.status(201).json(await service.create(req.body, req.user!));
   })
 );
 
 router.get(
   '/',
+  requirePermission('leads:read'),
   asyncHandler(async (req, res) => {
-    const result = await service.list({
-      status: req.query.status as any,
-      assignedToId: req.query.assignedToId as string,
-      sourceId: req.query.sourceId as string,
-      search: req.query.search as string,
-      page: Number(req.query.page) || 1,
-      pageSize: Number(req.query.pageSize) || 25,
-    });
-    res.json(result);
+    const query = listQuerySchema.parse(req.query);
+    res.json(await service.list(query, req.user!));
   })
 );
 
 router.get(
   '/:id',
+  requirePermission('leads:read'),
   asyncHandler(async (req, res) => {
-    res.json(await service.getById(req.params.id));
+    res.json(await service.getById(leadId(req.params.id), req.user!));
   })
 );
 
 router.patch(
   '/:id',
+  requirePermission('leads:write'),
+  validate({ body: updateSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await service.update(req.params.id, req.body, req.user!.id));
+    res.json(
+      await service.update(
+        leadId(req.params.id),
+        req.body as Parameters<LeadsService['update']>[1],
+        req.user!,
+      ),
+    );
   })
 );
 
 router.patch(
   '/:id/status',
+  requirePermission('leads:write'),
   validate({
-    body: z.object({
-      status: z.enum(['NEW', 'CONTACTED', 'QUALIFIED', 'INTERESTED', 'FOLLOW_UP', 'ENROLLED', 'LOST', 'NOT_INTERESTED']),
-      reason: z.string().optional(),
-    }),
+    body: z
+      .object({
+        status: statusEnum,
+        reason: z.string().trim().max(300).optional(),
+      })
+      .strict(),
   }),
   asyncHandler(async (req, res) => {
-    res.json(await service.changeStatus(req.params.id, req.body.status, req.user!.id, req.body.reason));
+    res.json(
+      await service.changeStatus(
+        leadId(req.params.id),
+        req.body.status,
+        req.user!,
+        req.body.reason,
+      ),
+    );
   })
 );
 
 router.patch(
   '/:id/assign',
-  validate({ body: z.object({ assignedToId: z.string().nullable() }) }),
+  requirePermission('leads:assign'),
+  validate({ body: z.object({ assignedToId: uuid.nullable() }).strict() }),
   asyncHandler(async (req, res) => {
-    res.json(await service.assign(req.params.id, req.body.assignedToId, req.user!.id));
+    res.json(
+      await service.assign(
+        leadId(req.params.id),
+        req.body.assignedToId,
+        req.user!,
+      ),
+    );
   })
 );
 
 router.patch(
   '/:id/follow-up',
-  validate({ body: z.object({ nextFollowUpAt: z.string() }) }),
+  requirePermission('leads:write'),
+  validate({ body: followUpSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await service.setFollowUp(req.params.id, new Date(req.body.nextFollowUpAt), req.user!.id));
+    const raw = req.body.nextFollowUpAt as string | null;
+    let nextFollowUpAt: Date | null = null;
+    if (raw !== null) {
+      nextFollowUpAt = new Date(raw);
+      if (Number.isNaN(nextFollowUpAt.getTime())) {
+        throw new AppError(400, 'INVALID_DATE');
+      }
+    }
+    res.json(
+      await service.setFollowUp(
+        leadId(req.params.id),
+        nextFollowUpAt,
+        req.user!,
+      ),
+    );
   })
 );
 

@@ -60,7 +60,7 @@ const navigationGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'التحليل والإدارة',
     items: [
-      { to: '/admin/reports', label: 'التقارير', icon: BarChart3 },
+      { to: '/admin/reports', label: 'التقارير', icon: BarChart3, roles: ['ADMIN', 'MANAGER'] },
       {
         to: '/admin/users',
         label: 'فريق العمل',

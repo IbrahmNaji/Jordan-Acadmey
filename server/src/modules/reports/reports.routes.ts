@@ -1,12 +1,19 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
-import { authenticate } from '../../middleware/auth';
+import { authenticate, requirePermission } from '../../middleware/auth';
+import type { AuthUser } from '../../middleware/auth';
 import { asyncHandler } from '../../utils/asyncHandler';
 
 const router = Router();
 router.use(authenticate);
+
+function scopeFor(user: AuthUser): Prisma.LeadWhereInput {
+  return user.role === 'AGENT' ? { assignedToId: user.id } : {};
+}
+
 
 const COURSES = ['MECHANICS', 'ELECTRICAL', 'DIAGNOSTICS', 'HYBRID'] as const;
 const STATUSES = [
@@ -28,13 +35,19 @@ function monthKey(date: Date) {
 
 router.get(
   '/dashboard',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const scope = scopeFor(req.user!);
+    const hasScope = Object.keys(scope).length > 0;
+
     const [totalLeads, enrolled, byStatus, bySource, totalRevenue] = await Promise.all([
-      prisma.lead.count(),
-      prisma.lead.count({ where: { status: 'ENROLLED' } }),
-      prisma.lead.groupBy({ by: ['status'], _count: true }),
-      prisma.lead.groupBy({ by: ['sourceId'], _count: true }),
-      prisma.payment.aggregate({ _sum: { amount: true } }),
+      prisma.lead.count({ where: scope }),
+      prisma.lead.count({ where: { ...scope, status: 'ENROLLED' } }),
+      prisma.lead.groupBy({ by: ['status'], where: scope, _count: true }),
+      prisma.lead.groupBy({ by: ['sourceId'], where: scope, _count: true }),
+      prisma.payment.aggregate({
+        where: hasScope ? { enrollment: { lead: scope } } : undefined,
+        _sum: { amount: true },
+      }),
     ]);
 
     const sources = await prisma.campaignSource.findMany({
@@ -58,14 +71,16 @@ router.get(
 
 router.get(
   '/follow-ups',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const due = await prisma.lead.findMany({
       where: {
+        ...scopeFor(req.user!),
         nextFollowUpAt: { lte: new Date() },
         status: { notIn: ['ENROLLED', 'LOST', 'NOT_INTERESTED'] },
       },
       include: { assignedTo: { select: { fullName: true } } },
       orderBy: { nextFollowUpAt: 'asc' },
+      take: 200,
     });
     res.json(due);
   })
@@ -73,6 +88,7 @@ router.get(
 
 router.get(
   '/overview',
+  requirePermission('reports:read'),
   asyncHandler(async (req, res) => {
     const query = z
       .object({

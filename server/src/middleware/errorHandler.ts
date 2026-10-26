@@ -27,6 +27,10 @@ export function errorHandler(
     });
   }
 
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({ error: 'INVALID_JSON' });
+  }
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({ error: err.code, message: err.message });
   }
@@ -40,6 +44,9 @@ export function errorHandler(
     }
     if (err.code === 'P2025') {
       return res.status(404).json({ error: 'NOT_FOUND' });
+    }
+    if (err.code === 'P2003') {
+      return res.status(400).json({ error: 'INVALID_REFERENCE' });
     }
   }
 

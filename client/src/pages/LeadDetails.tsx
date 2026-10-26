@@ -25,6 +25,8 @@ import {
   useSetFollowUp,
 } from '../hooks/useLeads';
 import api from '../api/client';
+import { getApiErrorMessage } from '../lib/apiError';
+import { useAuth } from '../store/auth';
 import type {
   Activity,
   ActivityType,
@@ -104,6 +106,8 @@ export default function LeadDetails() {
 
   const leadQuery = useLead(id);
   const lead = leadQuery.data;
+  const role = useAuth((s) => s.user?.role);
+  const canAssign = role === 'ADMIN' || role === 'MANAGER';
 
   const [editOpen, setEditOpen] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
@@ -111,6 +115,8 @@ export default function LeadDetails() {
   const [reason, setReason] = useState('');
   const [followUp, setFollowUp] = useState('');
   const [assignTo, setAssignTo] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   // مزامنة الحقول المحلية عند وصول البيانات
   useEffect(() => {
@@ -147,8 +153,9 @@ export default function LeadDetails() {
       const { data } = await api.get<User[]>('/users');
       return data;
     },
+    enabled: canAssign,
     staleTime: 5 * 60_000,
-    retry: false, // endpoint /users قد لا يكون موجوداً بعد
+    retry: false,
   });
 
   const agents = useMemo(
@@ -187,30 +194,41 @@ export default function LeadDetails() {
 
   const onSaveStatus = async () => {
     if (!statusDraft || statusDraft === lead.status) return;
+    setActionError(null);
+    setActionNotice(null);
     try {
       await changeStatus.mutateAsync({
         status: statusDraft,
         reason: reason.trim() || undefined,
       });
       setReason('');
-    } catch {
-      /* error state يُعرض أدناه */
+      setActionNotice('تم تحديث حالة العميل.');
+    } catch (err) {
+      setActionError(getApiErrorMessage(err));
     }
   };
 
   const onAssign = async () => {
+    setActionError(null);
+    setActionNotice(null);
     try {
       await assignMutation.mutateAsync(assignTo || null);
-    } catch {
-      /* */
+      setActionNotice('تم تحديث المسؤول عن العميل.');
+    } catch (err) {
+      setActionError(getApiErrorMessage(err));
     }
   };
 
   const onSaveFollowUp = async () => {
+    setActionError(null);
+    setActionNotice(null);
     try {
       await followUpMutation.mutateAsync(followUp ? followUp : null);
-    } catch {
-      /* */
+      setActionNotice(
+        followUp ? 'تم حفظ موعد المتابعة.' : 'تم إلغاء موعد المتابعة.',
+      );
+    } catch (err) {
+      setActionError(getApiErrorMessage(err));
     }
   };
 
@@ -389,6 +407,17 @@ export default function LeadDetails() {
         <section className="rounded-xl bg-white p-5 ring-1 ring-gray-200 space-y-5">
           <h2 className="text-sm font-semibold text-gray-900">إجراءات</h2>
 
+          {actionError && (
+            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">
+              {actionError}
+            </div>
+          )}
+          {actionNotice && (
+            <div className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green-800 ring-1 ring-green-200">
+              {actionNotice}
+            </div>
+          )}
+
           {/* Change Status */}
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-600">
@@ -430,42 +459,44 @@ export default function LeadDetails() {
           </div>
 
           {/* Assign */}
-          <div>
-            <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-600">
-              <UserCheck size={14} /> تعيين المسؤول
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={assignTo}
-                onChange={(e) => setAssignTo(e.target.value)}
-                disabled={usersQuery.isLoading}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
-              >
-                <option value="">— بدون —</option>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.fullName}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={onAssign}
-                disabled={
-                  assignMutation.isPending ||
-                  assignTo === (lead.assignedToId ?? '')
-                }
-                className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ink-800 disabled:bg-ink-900/30"
-              >
-                حفظ
-              </button>
+          {canAssign && (
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-600">
+                <UserCheck size={14} /> تعيين المسؤول
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={assignTo}
+                  onChange={(e) => setAssignTo(e.target.value)}
+                  disabled={usersQuery.isLoading}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
+                >
+                  <option value="">— بدون —</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.fullName}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={onAssign}
+                  disabled={
+                    assignMutation.isPending ||
+                    assignTo === (lead.assignedToId ?? '')
+                  }
+                  className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ink-800 disabled:bg-ink-900/30"
+                >
+                  حفظ
+                </button>
+              </div>
+              {usersQuery.isError && (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  قائمة المستخدمين غير متاحة حالياً.
+                </p>
+              )}
             </div>
-            {usersQuery.isError && (
-              <p className="mt-1 text-[11px] text-gray-500">
-                قائمة المستخدمين غير متاحة حالياً.
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Follow-up */}
           <div>
@@ -488,6 +519,19 @@ export default function LeadDetails() {
                 حفظ
               </button>
             </div>
+            {lead.nextFollowUpAt && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowUp('');
+                  void onSaveFollowUp();
+                }}
+                disabled={followUpMutation.isPending}
+                className="mt-1.5 text-[11px] text-gray-500 underline-offset-2 hover:text-flame-700 hover:underline"
+              >
+                إلغاء موعد المتابعة الحالي
+              </button>
+            )}
           </div>
 
           {/* Convert */}

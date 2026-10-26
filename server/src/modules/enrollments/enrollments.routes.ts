@@ -3,19 +3,15 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
-import { authenticate, authorize } from '../../middleware/auth';
+import { authenticate, requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
+import { assertEnrollmentAccess } from '../../utils/access';
 
 const router = Router();
 router.use(authenticate);
 
-const courseEnum = z.enum([
-  'MECHANICS',
-  'ELECTRICAL',
-  'DIAGNOSTICS',
-  'HYBRID',
-]);
+const courseEnum = z.enum(['MECHANICS', 'ELECTRICAL', 'DIAGNOSTICS', 'HYBRID']);
 const statusEnum = z.enum(['ACTIVE', 'COMPLETED', 'CANCELLED']);
 const paymentMethodEnum = z.enum([
   'CASH',
@@ -31,6 +27,8 @@ const COURSE_LABEL: Record<z.infer<typeof courseEnum>, string> = {
   HYBRID: 'هايبرد',
 };
 
+const MONEY_MAX = 1_000_000_000;
+
 const DETAIL_INCLUDE = {
   lead: {
     select: {
@@ -44,18 +42,27 @@ const DETAIL_INCLUDE = {
   payments: { orderBy: { paidAt: 'desc' as const } },
 };
 
+function enrollmentId(raw: unknown) {
+  const parsed = z.string().uuid().safeParse(raw);
+  if (!parsed.success) throw new AppError(404, 'ENROLLMENT_NOT_FOUND');
+  return parsed.data;
+}
+
 router.post(
   '/',
+  requirePermission('enrollments:write'),
   validate({
-    body: z.object({
-      leadId: z.string().uuid(),
-      course: courseEnum,
-      totalFee: z.number().positive().max(1_000_000_000),
-      paymentPlan: z.string().trim().max(120).optional(),
-      startDate: z.coerce.date().optional(),
-      endDate: z.coerce.date().optional(),
-      notes: z.string().trim().max(2000).optional(),
-    }),
+    body: z
+      .object({
+        leadId: z.string().uuid(),
+        course: courseEnum,
+        totalFee: z.number().positive().max(MONEY_MAX),
+        paymentPlan: z.string().trim().max(120).optional(),
+        startDate: z.coerce.date().optional(),
+        endDate: z.coerce.date().optional(),
+        notes: z.string().trim().max(2000).optional(),
+      })
+      .strict(),
   }),
   asyncHandler(async (req, res) => {
     const { leadId, course, totalFee, paymentPlan, startDate, endDate, notes } =
@@ -73,9 +80,20 @@ router.post(
       throw new AppError(400, 'INVALID_DATE_RANGE');
     }
 
+    if (req.user!.role === 'AGENT') {
+      const lead = await prisma.lead.findFirst({
+        where: { id: leadId, assignedToId: req.user!.id },
+        select: { id: true },
+      });
+      if (!lead) throw new AppError(404, 'LEAD_NOT_FOUND');
+    }
+
     const [lead, existing] = await Promise.all([
-      prisma.lead.findUnique({ where: { id: leadId } }),
-      prisma.enrollment.findUnique({ where: { leadId } }),
+      prisma.lead.findUnique({ where: { id: leadId }, select: { id: true } }),
+      prisma.enrollment.findUnique({
+        where: { leadId },
+        select: { id: true },
+      }),
     ]);
     if (!lead) throw new AppError(404, 'LEAD_NOT_FOUND');
     if (existing) throw new AppError(409, 'LEAD_ALREADY_ENROLLED');
@@ -111,71 +129,112 @@ router.post(
     });
 
     res.status(201).json(enrollment);
-  }),
+  })
 );
 
 router.get(
   '/',
+  requirePermission('enrollments:read'),
   asyncHandler(async (req, res) => {
     const query = z
       .object({
         status: statusEnum.optional(),
         course: courseEnum.optional(),
-        search: z.string().trim().min(1).optional(),
+        search: z.string().trim().min(1).max(120).optional(),
+        page: z.coerce.number().int().min(1).max(10_000).default(1),
+        pageSize: z.coerce.number().int().min(1).max(100).default(25),
       })
       .parse(req.query);
 
-    const where: Prisma.EnrollmentWhereInput = {};
-    if (query.status) where.status = query.status;
-    if (query.course) where.course = query.course;
+    const leadFilter: Prisma.LeadWhereInput = {};
+    if (req.user!.role === 'AGENT') {
+      leadFilter.assignedToId = req.user!.id;
+    }
     if (query.search) {
-      where.lead = {
-        OR: [
-          { fullName: { contains: query.search, mode: 'insensitive' } },
-          { phone: { contains: query.search } },
-        ],
-      };
+      leadFilter.OR = [
+        { fullName: { contains: query.search, mode: 'insensitive' } },
+        { phone: { contains: query.search } },
+      ];
     }
 
-    res.json(
-      await prisma.enrollment.findMany({
+    const where: Prisma.EnrollmentWhereInput = {
+      ...(Object.keys(leadFilter).length ? { lead: leadFilter } : {}),
+      ...(query.status && { status: query.status }),
+      ...(query.course && { course: query.course }),
+    };
+
+    const summaryWhere: Prisma.EnrollmentWhereInput = {
+      ...where,
+      status: query.status === 'CANCELLED' ? 'CANCELLED' : { not: 'CANCELLED' },
+    };
+
+    const activeWhere: Prisma.EnrollmentWhereInput = {
+      ...summaryWhere,
+      status: 'ACTIVE',
+    };
+
+    const [items, total, summary, active] = await Promise.all([
+      prisma.enrollment.findMany({
         where,
         include: DETAIL_INCLUDE,
         orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
       }),
-    );
-  }),
+      prisma.enrollment.count({ where }),
+      prisma.enrollment.aggregate({
+        where: summaryWhere,
+        _sum: { totalFee: true, paidAmount: true },
+        _count: true,
+      }),
+      prisma.enrollment.count({ where: activeWhere }),
+    ]);
+
+    res.json({
+      items,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      summary: {
+        active,
+        total: summary._count,
+        totalFees: summary._sum.totalFee ?? 0,
+        collected: summary._sum.paidAmount ?? 0,
+      },
+    });
+  })
 );
 
 router.get(
   '/:id',
+  requirePermission('enrollments:read'),
   asyncHandler(async (req, res) => {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { id: req.params.id },
-      include: DETAIL_INCLUDE,
-    });
-    if (!enrollment) throw new AppError(404, 'ENROLLMENT_NOT_FOUND');
+    const enrollment = await assertEnrollmentAccess(
+      req.user!,
+      enrollmentId(req.params.id),
+    );
     res.json(enrollment);
-  }),
+  })
 );
 
 router.patch(
   '/:id',
-  authorize('ADMIN', 'MANAGER', 'AGENT'),
+  requirePermission('enrollments:manage'),
   validate({
-    body: z.object({
-      status: statusEnum.optional(),
-      totalFee: z.number().positive().max(1_000_000_000).optional(),
-      paymentPlan: z.string().trim().max(120).nullable().optional(),
-      startDate: z.coerce.date().nullable().optional(),
-      endDate: z.coerce.date().nullable().optional(),
-      notes: z.string().trim().max(2000).nullable().optional(),
-    }),
+    body: z
+      .object({
+        status: statusEnum.optional(),
+        totalFee: z.number().positive().max(MONEY_MAX).optional(),
+        paymentPlan: z.string().trim().max(120).nullable().optional(),
+        startDate: z.coerce.date().nullable().optional(),
+        endDate: z.coerce.date().nullable().optional(),
+        notes: z.string().trim().max(2000).nullable().optional(),
+      })
+      .strict(),
   }),
   asyncHandler(async (req, res) => {
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { id: req.params.id },
-    });
+    const id = enrollmentId(req.params.id);
+    const enrollment = await prisma.enrollment.findUnique({ where: { id } });
     if (!enrollment) throw new AppError(404, 'ENROLLMENT_NOT_FOUND');
 
     const body = req.body as {
@@ -211,31 +270,32 @@ router.patch(
 
     res.json(
       await prisma.enrollment.update({
-        where: { id: req.params.id },
+        where: { id },
         data,
         include: DETAIL_INCLUDE,
-      }),
+      })
     );
-  }),
+  })
 );
 
 router.post(
   '/:id/payments',
-  authorize('ADMIN', 'MANAGER', 'AGENT'),
+  requirePermission('payments:write'),
   validate({
-    body: z.object({
-      amount: z.number().positive().max(1_000_000_000),
-      method: paymentMethodEnum,
-      reference: z.string().trim().max(120).optional(),
-      note: z.string().trim().max(500).optional(),
-    }),
+    body: z
+      .object({
+        amount: z.number().positive().max(MONEY_MAX),
+        method: paymentMethodEnum,
+        reference: z.string().trim().max(120).optional(),
+        note: z.string().trim().max(500).optional(),
+      })
+      .strict(),
   }),
   asyncHandler(async (req, res) => {
-    const enrollmentId = req.params.id;
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { id: enrollmentId },
-    });
-    if (!enrollment) throw new AppError(404, 'ENROLLMENT_NOT_FOUND');
+    const enrollment = await assertEnrollmentAccess(
+      req.user!,
+      enrollmentId(req.params.id),
+    );
     if (enrollment.status === 'CANCELLED') {
       throw new AppError(400, 'ENROLLMENT_CANCELLED');
     }
@@ -249,7 +309,7 @@ router.post(
     const payment = await prisma.$transaction(async (tx) => {
       const created = await tx.payment.create({
         data: {
-          enrollmentId,
+          enrollmentId: enrollment.id,
           amount,
           method: req.body.method,
           reference: req.body.reference,
@@ -258,14 +318,14 @@ router.post(
         },
       });
       await tx.enrollment.update({
-        where: { id: enrollmentId },
+        where: { id: enrollment.id },
         data: { paidAmount: { increment: amount } },
       });
       return created;
     });
 
     res.status(201).json(payment);
-  }),
+  })
 );
 
 export default router;

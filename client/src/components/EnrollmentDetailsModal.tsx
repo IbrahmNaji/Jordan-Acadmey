@@ -11,6 +11,7 @@ import {
 import EnrollmentStatusBadge from './EnrollmentStatusBadge';
 import { useEnrollment, useUpdateEnrollment } from '../hooks/useEnrollments';
 import { getApiErrorMessage } from '../lib/apiError';
+import { useAuth } from '../store/auth';
 import {
   COURSE_LABEL,
   ENROLLMENT_STATUS_OPTIONS,
@@ -38,6 +39,8 @@ export default function EnrollmentDetailsModal({
   const query = useEnrollment(open ? enrollmentId : undefined, open);
   const enrollment = query.data;
   const updateMutation = useUpdateEnrollment(enrollmentId ?? '');
+  const role = useAuth((s) => s.user?.role);
+  const canManage = role === 'ADMIN' || role === 'MANAGER';
   const [status, setStatus] = useState<EnrollmentStatus>('ACTIVE');
   const [error, setError] = useState<string | null>(null);
 
@@ -222,36 +225,45 @@ export default function EnrollmentDetailsModal({
                 </div>
 
                 <div className="mt-3">
-                  <p className="mb-1 text-xs font-medium text-gray-600">
-                    تغيير حالة التسجيل
-                  </p>
-                  <div className="flex gap-2">
-                    <select
-                      value={status}
-                      onChange={(e) =>
-                        setStatus(e.target.value as EnrollmentStatus)
-                      }
-                      className="flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
-                    >
-                      {ENROLLMENT_STATUS_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={onSaveStatus}
-                      disabled={
-                        updateMutation.isPending || status === enrollment.status
-                      }
-                      className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ink-800 disabled:bg-ink-900/30"
-                    >
-                      {updateMutation.isPending ? 'جارٍ الحفظ...' : 'حفظ'}
-                    </button>
-                  </div>
-                  {error && (
-                    <p className="mt-1 text-xs text-red-600">{error}</p>
+                  {canManage ? (
+                    <>
+                      <p className="mb-1 text-xs font-medium text-gray-600">
+                        تغيير حالة التسجيل
+                      </p>
+                      <div className="flex gap-2">
+                        <select
+                          value={status}
+                          onChange={(e) =>
+                            setStatus(e.target.value as EnrollmentStatus)
+                          }
+                          className="flex-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
+                        >
+                          {ENROLLMENT_STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={onSaveStatus}
+                          disabled={
+                            updateMutation.isPending ||
+                            status === enrollment.status
+                          }
+                          className="rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ink-800 disabled:bg-ink-900/30"
+                        >
+                          {updateMutation.isPending ? 'جارٍ الحفظ...' : 'حفظ'}
+                        </button>
+                      </div>
+                      {error && (
+                        <p className="mt-1 text-xs text-red-600">{error}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-[11px] leading-5 text-gray-500">
+                      تعديل حالة التسجيل متاح لمدير النظام والمدير فقط.
+                    </p>
                   )}
                 </div>
               </div>

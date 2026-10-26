@@ -4,6 +4,9 @@ const numberFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 2,
 });
 
+/** Display label only — persisted amounts stay in the stored currency. */
+const CURRENCY_LABEL = import.meta.env.VITE_CURRENCY_LABEL?.trim() || 'ل.س';
+
 const AR_MONTHS = [
   'كانون الثاني',
   'شباط',
@@ -45,7 +48,7 @@ export function formatNumber(value: number | DecimalLike): string {
 }
 
 export function formatMoney(value: DecimalLike | null | undefined): string {
-  return `${numberFormatter.format(toNumber(value))} ل.س`;
+  return `${numberFormatter.format(toNumber(value))} ${CURRENCY_LABEL}`;
 }
 
 export function formatDate(iso?: string | null): string {

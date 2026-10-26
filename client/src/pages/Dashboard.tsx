@@ -12,12 +12,15 @@ import StatusBadge from '../components/StatusBadge';
 import { useDashboardStats, useFollowUps } from '../hooks/useReports';
 import { LEAD_STATUS_LABEL } from '../lib/constants';
 import { formatDate, formatMoney, formatNumber } from '../lib/format';
+import { useAuth } from '../store/auth';
 import type { Lead } from '../types';
 
 export default function Dashboard() {
   const statsQuery = useDashboardStats();
   const followUpsQuery = useFollowUps();
   const stats = statsQuery.data;
+  const role = useAuth((s) => s.user?.role);
+  const isAgent = role === 'AGENT';
 
   if (statsQuery.isLoading) return <DashboardSkeleton />;
 
@@ -58,10 +61,10 @@ export default function Dashboard() {
     {
       label: 'نسبة التحويل',
       value: `${stats.conversionRate.toFixed(1)}%`,
-      hint: 'تفاصيل التقارير',
+      hint: isAgent ? 'تسجيلاتك' : 'تفاصيل التقارير',
       icon: TrendingUp,
       tone: 'bg-ink-900/[0.05] text-ink-700',
-      to: '/admin/reports',
+      to: isAgent ? '/admin/enrollments' : '/admin/reports',
     },
     {
       label: 'إجمالي الإيرادات',
@@ -69,7 +72,7 @@ export default function Dashboard() {
       hint: 'الدفعات المحصّلة',
       icon: DollarSign,
       tone: 'bg-amber-50 text-amber-600',
-      to: '/admin/reports',
+      to: isAgent ? '/admin/enrollments' : '/admin/reports',
     },
   ];
 

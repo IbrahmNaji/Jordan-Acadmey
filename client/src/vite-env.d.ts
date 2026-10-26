@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_ACADEMY_PHONE?: string;
   readonly VITE_ACADEMY_WHATSAPP?: string;
   readonly VITE_ACADEMY_EMAIL?: string;
+  readonly VITE_CURRENCY_LABEL?: string;
 }
 
 interface ImportMeta {

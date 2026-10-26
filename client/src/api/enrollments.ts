@@ -1,6 +1,7 @@
 import api from './client';
 import type {
   CourseType,
+  DecimalLike,
   Enrollment,
   EnrollmentStatus,
   Payment,
@@ -11,6 +12,23 @@ export interface EnrollmentFilters {
   status?: EnrollmentStatus;
   course?: CourseType;
   search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface EnrollmentSummary {
+  active: number;
+  total: number;
+  totalFees: DecimalLike;
+  collected: DecimalLike;
+}
+
+export interface EnrollmentsResponse {
+  items: Enrollment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: EnrollmentSummary;
 }
 
 export interface CreateEnrollmentPayload {
@@ -41,12 +59,14 @@ export interface RecordPaymentPayload {
 
 export async function fetchEnrollments(
   params: EnrollmentFilters = {},
-): Promise<Enrollment[]> {
-  const { data } = await api.get<Enrollment[]>('/enrollments', {
+): Promise<EnrollmentsResponse> {
+  const { data } = await api.get<EnrollmentsResponse>('/enrollments', {
     params: {
       status: params.status || undefined,
       course: params.course || undefined,
       search: params.search?.trim() || undefined,
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 25,
     },
   });
   return data;

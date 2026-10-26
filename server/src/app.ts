@@ -17,14 +17,29 @@ import publicRoutes from './modules/public/public.routes';
 
 export const app = express();
 
+app.disable('x-powered-by');
+if (env.TRUST_PROXY) app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
-app.use('/api', rateLimit({ windowMs: 60_000, max: 300 }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
+
+app.use(
+  '/api',
+  rateLimit({
+    windowMs: 60_000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, res) => {
+      res.status(429).json({ error: 'RATE_LIMITED' });
+    },
+  })
+);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/leads', leadsRoutes);
@@ -34,5 +49,9 @@ app.use('/api/enrollments', enrollmentsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/public', publicRoutes);
+
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'NOT_FOUND' });
+});
 
 app.use(errorHandler);

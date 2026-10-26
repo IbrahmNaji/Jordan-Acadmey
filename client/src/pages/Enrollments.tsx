@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import {
@@ -28,85 +28,78 @@ import type {
   EnrollmentStatus,
 } from '../types';
 
+const PAGE_SIZE = 20;
+
 export default function Enrollments() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [course, setCourse] = useState<CourseType | ''>('');
   const [status, setStatus] = useState<EnrollmentStatus | ''>('');
+  const [page, setPage] = useState(1);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const [paying, setPaying] = useState<Enrollment | null>(null);
 
-  const enrollmentsQuery = useEnrollments();
-  const enrollments = enrollmentsQuery.data ?? [];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  const stats = useMemo(() => {
-    const active = enrollments.filter((e) => e.status === 'ACTIVE').length;
-    const nonCancelled = enrollments.filter((e) => e.status !== 'CANCELLED');
-    const totalFees = nonCancelled.reduce(
-      (sum, e) => sum + toNumber(e.totalFee),
-      0,
-    );
-    const collected = nonCancelled.reduce(
-      (sum, e) => sum + toNumber(e.paidAmount),
-      0,
-    );
-    return {
-      active,
-      total: enrollments.length,
-      totalFees,
-      collected,
-      outstanding: Math.max(0, totalFees - collected),
-      rate: totalFees ? (collected / totalFees) * 100 : 0,
-    };
-  }, [enrollments]);
+  const enrollmentsQuery = useEnrollments({
+    status: status || undefined,
+    course: course || undefined,
+    search: search || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return enrollments.filter((e) => {
-      if (course && e.course !== course) return false;
-      if (status && e.status !== status) return false;
-      if (q) {
-        const haystack = `${e.lead?.fullName ?? ''} ${
-          e.lead?.phone ?? ''
-        }`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [enrollments, search, course, status]);
+  const enrollments = enrollmentsQuery.data?.items ?? [];
+  const summary = enrollmentsQuery.data?.summary;
+  const total = enrollmentsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const hasFilters = search.trim() !== '' || course !== '' || status !== '';
+  const hasFilters = search !== '' || course !== '' || status !== '';
+  const totalFees = toNumber(summary?.totalFees);
+  const collected = toNumber(summary?.collected);
+  const outstanding = Math.max(0, totalFees - collected);
 
   const clearFilters = () => {
+    setSearchInput('');
     setSearch('');
     setCourse('');
     setStatus('');
+    setPage(1);
   };
 
   const statCards = [
     {
       label: 'الطلاب النشطون',
-      value: stats.active.toLocaleString('en-US'),
-      hint: `${stats.total.toLocaleString('en-US')} تسجيل إجمالاً`,
+      value: (summary?.active ?? 0).toLocaleString('en-US'),
+      hint: `${(summary?.total ?? 0).toLocaleString('en-US')} تسجيل إجمالاً`,
       icon: GraduationCap,
       chip: 'bg-ink-900/[0.05] text-ink-700',
     },
     {
       label: 'إجمالي الرسوم',
-      value: formatMoney(stats.totalFees),
+      value: formatMoney(totalFees),
       hint: 'للتسجيلات غير الملغاة',
       icon: Banknote,
       chip: 'bg-flame-50 text-flame-700',
     },
     {
       label: 'المحصّل',
-      value: formatMoney(stats.collected),
-      hint: `نسبة التحصيل ${stats.rate.toFixed(1)}%`,
+      value: formatMoney(collected),
+      hint: `نسبة التحصيل ${
+        totalFees ? ((collected / totalFees) * 100).toFixed(1) : '0.0'
+      }%`,
       icon: Wallet,
       chip: 'bg-green-50 text-green-600',
     },
     {
       label: 'المتبقي',
-      value: formatMoney(stats.outstanding),
+      value: formatMoney(outstanding),
       hint: 'ذمم الطلاب الحالية',
       icon: CreditCard,
       chip: 'bg-amber-50 text-amber-600',
@@ -182,8 +175,8 @@ export default function Enrollments() {
               className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
             />
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="ابحث باسم الطالب أو الهاتف..."
               className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
             />
@@ -191,7 +184,10 @@ export default function Enrollments() {
 
           <select
             value={course}
-            onChange={(e) => setCourse(e.target.value as CourseType | '')}
+            onChange={(e) => {
+              setCourse(e.target.value as CourseType | '');
+              setPage(1);
+            }}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
           >
             <option value="">كل الدورات</option>
@@ -204,9 +200,10 @@ export default function Enrollments() {
 
           <select
             value={status}
-            onChange={(e) =>
-              setStatus(e.target.value as EnrollmentStatus | '')
-            }
+            onChange={(e) => {
+              setStatus(e.target.value as EnrollmentStatus | '');
+              setPage(1);
+            }}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flame-500"
           >
             <option value="">كل الحالات</option>
@@ -247,114 +244,142 @@ export default function Enrollments() {
               إعادة المحاولة
             </button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : enrollments.length === 0 ? (
           <EmptyState
             hasFilters={hasFilters}
             onClear={clearFilters}
-            hasAny={enrollments.length > 0}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600">
-                <tr>
-                  <Th>الطالب</Th>
-                  <Th>الدورة</Th>
-                  <Th>الحالة</Th>
-                  <Th>البداية</Th>
-                  <Th>الرسوم</Th>
-                  <Th>المدفوع</Th>
-                  <Th>المتبقي</Th>
-                  <Th className="text-center">إجراءات</Th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((enrollment) => {
-                  const total = toNumber(enrollment.totalFee);
-                  const paid = toNumber(enrollment.paidAmount);
-                  const remaining = Math.max(0, total - paid);
-                  const paidPercent =
-                    total > 0 ? Math.min(100, (paid / total) * 100) : 0;
-                  const canPay =
-                    enrollment.status !== 'CANCELLED' && remaining > 0;
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <Th>الطالب</Th>
+                    <Th>الدورة</Th>
+                    <Th>الحالة</Th>
+                    <Th>البداية</Th>
+                    <Th>الرسوم</Th>
+                    <Th>المدفوع</Th>
+                    <Th>المتبقي</Th>
+                    <Th className="text-center">إجراءات</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {enrollments.map((enrollment) => {
+                    const rowTotal = toNumber(enrollment.totalFee);
+                    const paid = toNumber(enrollment.paidAmount);
+                    const remaining = Math.max(0, rowTotal - paid);
+                    const paidPercent =
+                      rowTotal > 0 ? Math.min(100, (paid / rowTotal) * 100) : 0;
+                    const canPay =
+                      enrollment.status !== 'CANCELLED' && remaining > 0;
 
-                  return (
-                    <tr
-                      key={enrollment.id}
-                      className="transition-colors hover:bg-flame-50/40"
-                    >
-                      <Td>
-                        <Link
-                          to={`/admin/leads/${enrollment.leadId}`}
-                          className="font-medium text-gray-900 hover:text-flame-700"
-                        >
-                          {enrollment.lead?.fullName ?? '—'}
-                        </Link>
-                        <p
-                          dir="ltr"
-                          className="mt-0.5 text-right text-xs tabular-nums text-gray-500"
-                        >
-                          {enrollment.lead?.phone ?? ''}
-                        </p>
-                      </Td>
-                      <Td className="text-gray-700">
-                        {COURSE_LABEL[enrollment.course] ?? enrollment.course}
-                      </Td>
-                      <Td>
-                        <EnrollmentStatusBadge status={enrollment.status} />
-                      </Td>
-                      <Td className="text-xs tabular-nums text-gray-600">
-                        {formatDate(enrollment.startDate)}
-                      </Td>
-                      <Td className="tabular-nums text-gray-800">
-                        {formatMoney(total)}
-                      </Td>
-                      <Td>
-                        <span className="tabular-nums text-green-700">
-                          {formatMoney(paid)}
-                        </span>
-                        <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className="h-full rounded-full bg-green-500"
-                            style={{ width: `${paidPercent}%` }}
-                          />
-                        </div>
-                      </Td>
-                      <Td
-                        className={clsx(
-                          'font-medium tabular-nums',
-                          remaining > 0 ? 'text-amber-700' : 'text-green-700',
-                        )}
+                    return (
+                      <tr
+                        key={enrollment.id}
+                        className="transition-colors hover:bg-flame-50/40"
                       >
-                        {remaining > 0 ? formatMoney(remaining) : 'مكتمل'}
-                      </Td>
-                      <Td>
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setDetailsId(enrollment.id)}
-                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-flame-700 hover:bg-flame-50"
+                        <Td>
+                          <Link
+                            to={`/admin/leads/${enrollment.leadId}`}
+                            className="font-medium text-gray-900 hover:text-flame-700"
                           >
-                            <Eye size={13} />
-                            تفاصيل
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaying(enrollment)}
-                            disabled={!canPay}
-                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 disabled:text-gray-500 disabled:hover:bg-transparent"
+                            {enrollment.lead?.fullName ?? '—'}
+                          </Link>
+                          <p
+                            dir="ltr"
+                            className="mt-0.5 text-right text-xs tabular-nums text-gray-500"
                           >
-                            <Wallet size={13} />
-                            دفعة
-                          </button>
-                        </div>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                            {enrollment.lead?.phone ?? ''}
+                          </p>
+                        </Td>
+                        <Td className="text-gray-700">
+                          {COURSE_LABEL[enrollment.course] ?? enrollment.course}
+                        </Td>
+                        <Td>
+                          <EnrollmentStatusBadge status={enrollment.status} />
+                        </Td>
+                        <Td className="text-xs tabular-nums text-gray-600">
+                          {formatDate(enrollment.startDate)}
+                        </Td>
+                        <Td className="tabular-nums text-gray-800">
+                          {formatMoney(rowTotal)}
+                        </Td>
+                        <Td>
+                          <span className="tabular-nums text-green-700">
+                            {formatMoney(paid)}
+                          </span>
+                          <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-gray-200">
+                            <div
+                              className="h-full rounded-full bg-green-500"
+                              style={{ width: `${paidPercent}%` }}
+                            />
+                          </div>
+                        </Td>
+                        <Td
+                          className={clsx(
+                            'font-medium tabular-nums',
+                            remaining > 0 ? 'text-amber-700' : 'text-green-700',
+                          )}
+                        >
+                          {remaining > 0 ? formatMoney(remaining) : 'مكتمل'}
+                        </Td>
+                        <Td>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setDetailsId(enrollment.id)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-flame-700 hover:bg-flame-50"
+                            >
+                              <Eye size={13} />
+                              تفاصيل
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaying(enrollment)}
+                              disabled={!canPay}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 disabled:text-gray-500 disabled:hover:bg-transparent"
+                            >
+                              <Wallet size={13} />
+                              دفعة
+                            </button>
+                          </div>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-gray-500">
+                {total.toLocaleString('en-US')} تسجيل — الصفحة {page} من{' '}
+                {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || enrollmentsQuery.isFetching}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  السابق
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={
+                    page >= totalPages || enrollmentsQuery.isFetching
+                  }
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  التالي
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -424,17 +449,15 @@ function TableSkeleton() {
 
 function EmptyState({
   hasFilters,
-  hasAny,
   onClear,
 }: {
   hasFilters: boolean;
-  hasAny: boolean;
   onClear: () => void;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
       <div className="rounded-full bg-gray-100 p-3 text-gray-400">
-        {hasAny ? <Inbox size={22} /> : <GraduationCap size={22} />}
+        {hasFilters ? <Inbox size={22} /> : <GraduationCap size={22} />}
       </div>
       <div>
         <p className="font-medium text-gray-900">

@@ -4,13 +4,21 @@ import crypto from 'crypto';
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { AppError } from '../../middleware/errorHandler';
+import { durationToMs } from '../../utils/duration';
+import type { StaffRole } from '../../config/permissions';
 
 interface TokenPayload {
   id: string;
-  role: 'ADMIN' | 'MANAGER' | 'AGENT';
+  role: StaffRole;
 }
 
 export class AuthService {
+  private refreshExpiry() {
+    return new Date(
+      Date.now() + durationToMs(env.JWT_REFRESH_EXPIRES_IN, '7d'),
+    );
+  }
+
   private signAccess(payload: TokenPayload) {
     return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN } as any);
   }
@@ -27,7 +35,9 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
     if (!user || !user.isActive) throw new AppError(401, 'INVALID_CREDENTIALS');
 
     const ok = await bcrypt.compare(password, user.passwordHash);
@@ -41,7 +51,7 @@ export class AuthService {
       data: {
         userId: user.id,
         tokenHash: this.hash(refreshToken),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: this.refreshExpiry(),
       },
     });
 
@@ -96,7 +106,7 @@ export class AuthService {
         data: {
           userId: user.id,
           tokenHash: this.hash(newRefreshToken),
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          expiresAt: this.refreshExpiry(),
         },
       }),
     ]);
@@ -109,6 +119,32 @@ export class AuthService {
       where: { tokenHash: this.hash(refreshToken), revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(404, 'USER_NOT_FOUND');
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new AppError(400, 'INVALID_CURRENT_PASSWORD');
+    if (currentPassword === newPassword) {
+      throw new AppError(400, 'PASSWORD_UNCHANGED');
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: await bcrypt.hash(newPassword, 12) },
+      }),
+      prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   async me(userId: string) {
