@@ -7,6 +7,8 @@ import { authenticate, requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { assertEnrollmentAccess } from '../../utils/access';
+import { recordAudit, requestIp } from '../../utils/audit';
+import { notifyRoles } from '../../utils/notifications';
 
 const router = Router();
 router.use(authenticate);
@@ -126,6 +128,25 @@ router.post(
         },
       });
       return created;
+    });
+
+    await recordAudit({
+      actor: req.user,
+      action: 'enrollment.create',
+      entityType: 'Enrollment',
+      entityId: enrollment.id,
+      summary: `تسجيل جديد في دورة ${COURSE_LABEL[course]}`,
+      metadata: { leadId, course, totalFee },
+      ip: requestIp(req),
+    });
+    await notifyRoles(['ADMIN', 'MANAGER'], {
+      type: 'ENROLLMENT_CREATED',
+      title: 'تسجيل جديد في دورة',
+      body: `${enrollment.lead?.fullName ?? ''} — ${COURSE_LABEL[course]}`,
+      link: '/admin/enrollments',
+      entityType: 'Enrollment',
+      entityId: enrollment.id,
+      dedupeKey: `enrollment-created-${enrollment.id}`,
     });
 
     res.status(201).json(enrollment);
@@ -268,13 +289,25 @@ router.patch(
     if (body.endDate !== undefined) data.endDate = body.endDate;
     if (body.notes !== undefined) data.notes = body.notes;
 
-    res.json(
-      await prisma.enrollment.update({
-        where: { id },
-        data,
-        include: DETAIL_INCLUDE,
-      })
-    );
+    const updated = await prisma.enrollment.update({
+      where: { id },
+      data,
+      include: DETAIL_INCLUDE,
+    });
+    await recordAudit({
+      actor: req.user,
+      action: 'enrollment.update',
+      entityType: 'Enrollment',
+      entityId: id,
+      summary: 'تعديل بيانات التسجيل',
+      metadata: {
+        fields: Object.keys(body),
+        status: body.status ?? null,
+        totalFee: body.totalFee ?? null,
+      },
+      ip: requestIp(req),
+    });
+    res.json(updated);
   })
 );
 
@@ -322,6 +355,29 @@ router.post(
         data: { paidAmount: { increment: amount } },
       });
       return created;
+    });
+
+    await recordAudit({
+      actor: req.user,
+      action: 'payment.create',
+      entityType: 'Payment',
+      entityId: payment.id,
+      summary: 'تسجيل دفعة',
+      metadata: {
+        enrollmentId: enrollment.id,
+        amount: amount.toString(),
+        method: req.body.method,
+      },
+      ip: requestIp(req),
+    });
+    await notifyRoles(['ADMIN', 'MANAGER'], {
+      type: 'PAYMENT_RECORDED',
+      title: 'تم تسجيل دفعة',
+      body: `${enrollment.lead?.fullName ?? ''} — ${amount.toString()}`,
+      link: '/admin/enrollments',
+      entityType: 'Payment',
+      entityId: payment.id,
+      dedupeKey: `payment-created-${payment.id}`,
     });
 
     res.status(201).json(payment);

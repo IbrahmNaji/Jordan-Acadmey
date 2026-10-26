@@ -30,6 +30,8 @@ Thumbs.db
 *.dump
 *.sql
 *.sql.gz
+# Prisma migrations are source code, not data dumps
+!server/prisma/migrations/**/*.sql
 backups/
 
 # Runtime uploads (user content, private documents)

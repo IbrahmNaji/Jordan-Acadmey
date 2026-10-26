@@ -17,12 +17,14 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  ScrollText,
   ShieldCheck,
   Users,
   X,
 } from 'lucide-react';
 import clsx from 'clsx';
 import BrandMark from './public/BrandMark';
+import NotificationBell from './NotificationBell';
 import { site } from '../content/site';
 
 type NavItem = {
@@ -67,6 +69,12 @@ const navigationGroups: { label: string; items: NavItem[] }[] = [
         icon: ShieldCheck,
         roles: ['ADMIN', 'MANAGER'],
       },
+      {
+        to: '/admin/audit',
+        label: 'سجل العمليات',
+        icon: ScrollText,
+        roles: ['ADMIN'],
+      },
     ],
   },
 ];
@@ -86,6 +94,7 @@ const PAGE_TITLES: Array<{ test: (path: string) => boolean; title: string }> = [
   { test: (p) => p === '/admin/campaigns', title: 'مصادر التسويق' },
   { test: (p) => p === '/admin/reports', title: 'التقارير' },
   { test: (p) => p === '/admin/users', title: 'فريق العمل' },
+  { test: (p) => p === '/admin/audit', title: 'سجل العمليات' },
 ];
 
 function getPageTitle(pathname: string) {
@@ -199,6 +208,7 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <Link
                 to="/"
                 target="_blank"

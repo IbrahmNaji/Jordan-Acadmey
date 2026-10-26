@@ -5,6 +5,7 @@ import { authenticate, requirePermission } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { AppError } from '../../middleware/errorHandler';
+import { recordAudit, requestIp } from '../../utils/audit';
 
 const router = Router();
 router.use(authenticate);
@@ -56,7 +57,16 @@ router.post(
   requirePermission('campaigns:write'),
   validate({ body: campaignSchema }),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await prisma.campaignSource.create({ data: req.body }));
+    const campaign = await prisma.campaignSource.create({ data: req.body });
+    await recordAudit({
+      actor: req.user,
+      action: 'campaign.create',
+      entityType: 'CampaignSource',
+      entityId: campaign.id,
+      summary: 'إنشاء مصدر تسويق',
+      ip: requestIp(req),
+    });
+    res.status(201).json(campaign);
   })
 );
 
@@ -67,12 +77,20 @@ router.patch(
   asyncHandler(async (req, res) => {
     const parsed = z.string().uuid().safeParse(req.params.id);
     if (!parsed.success) throw new AppError(404, 'NOT_FOUND');
-    res.json(
-      await prisma.campaignSource.update({
-        where: { id: parsed.data },
-        data: req.body,
-      })
-    );
+    const campaign = await prisma.campaignSource.update({
+      where: { id: parsed.data },
+      data: req.body,
+    });
+    await recordAudit({
+      actor: req.user,
+      action: 'campaign.update',
+      entityType: 'CampaignSource',
+      entityId: campaign.id,
+      summary: 'تعديل مصدر تسويق',
+      metadata: { fields: Object.keys(req.body) },
+      ip: requestIp(req),
+    });
+    res.json(campaign);
   })
 );
 

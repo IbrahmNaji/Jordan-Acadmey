@@ -25,6 +25,7 @@ const Campaigns = lazy(() => import('./pages/Campaigns'));
 const Enrollments = lazy(() => import('./pages/Enrollments'));
 const Reports = lazy(() => import('./pages/Reports'));
 const UsersPage = lazy(() => import('./pages/Users'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
 
 const CoursesPage = lazy(() => import('./pages/public/CoursesPage'));
 const CourseDetailPage = lazy(() => import('./pages/public/CourseDetailPage'));
@@ -72,6 +73,20 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
+  return <>{children}</>;
+}
+
+function RequireRole({
+  roles,
+  children,
+}: {
+  roles: Array<'ADMIN' | 'MANAGER' | 'AGENT'>;
+  children: ReactNode;
+}) {
+  const { user } = useAuthStore();
+  if (user && !roles.includes(user.role)) {
+    return <Navigate to="/admin" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -141,6 +156,14 @@ export default function App() {
                 <Route path="enrollments" element={<Enrollments />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="users" element={<UsersPage />} />
+                <Route
+                  path="audit"
+                  element={
+                    <RequireRole roles={['ADMIN']}>
+                      <AuditLog />
+                    </RequireRole>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>
 

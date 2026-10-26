@@ -32,7 +32,7 @@ export async function assertEnrollmentAccess(
         ? { lead: { assignedToId: user.id } }
         : {}),
     },
-    include: { lead: { select: { assignedToId: true } } },
+    include: { lead: { select: { assignedToId: true, fullName: true } } },
   });
   if (!enrollment) throw new AppError(404, 'ENROLLMENT_NOT_FOUND');
   return enrollment;

@@ -5,6 +5,7 @@ import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/auth';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { passwordSchema } from '../../utils/validation';
+import { maskEmail, recordAudit, requestIp } from '../../utils/audit';
 import { AuthService } from './auth.service';
 
 const router = Router();
@@ -46,8 +47,27 @@ router.post(
       .strict(),
   }),
   asyncHandler(async (req, res) => {
-    const result = await service.login(req.body.email, req.body.password);
-    res.json(result);
+    try {
+      const result = await service.login(req.body.email, req.body.password);
+      await recordAudit({
+        actor: result.user,
+        action: 'auth.login',
+        entityType: 'User',
+        entityId: result.user.id,
+        summary: 'تسجيل دخول ناجح',
+        ip: requestIp(req),
+      });
+      res.json(result);
+    } catch (error) {
+      await recordAudit({
+        action: 'auth.login_failed',
+        entityType: 'User',
+        summary: 'محاولة تسجيل دخول فاشلة',
+        metadata: { email: maskEmail(req.body.email) },
+        ip: requestIp(req),
+      });
+      throw error;
+    }
   })
 );
 
@@ -95,6 +115,14 @@ router.post(
       req.body.currentPassword,
       req.body.newPassword,
     );
+    await recordAudit({
+      actor: req.user,
+      action: 'auth.change_password',
+      entityType: 'User',
+      entityId: req.user!.id,
+      summary: 'تغيير كلمة المرور',
+      ip: requestIp(req),
+    });
     res.status(204).send();
   })
 );

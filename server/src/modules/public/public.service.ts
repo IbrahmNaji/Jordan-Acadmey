@@ -1,6 +1,12 @@
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { findPublicCourse } from '../../content/courses';
+import { createCustomerForPerson } from '../../utils/customer';
+import {
+  CONSENT_VERSION,
+  INQUIRY_CONSENT_PURPOSE,
+} from '../../config/consent';
+import { notifyRoles } from '../../utils/notifications';
 
 const WEBSITE_SOURCE = 'الموقع الإلكتروني';
 
@@ -22,7 +28,7 @@ interface InquiryInput {
 }
 
 export class PublicService {
-  async createInquiry(input: InquiryInput) {
+  async createInquiry(input: InquiryInput, context: { ip?: string | null } = {}) {
     const course = input.courseSlug
       ? findPublicCourse(input.courseSlug)
       : undefined;
@@ -63,18 +69,53 @@ export class PublicService {
       'المصدر: نموذج الموقع العام، مع موافقة على سياسة الخصوصية.',
     ].filter(Boolean);
 
-    await prisma.lead.create({
-      data: {
-        fullName: input.fullName,
-        phone: input.phone,
-        whatsapp: input.whatsapp || null,
-        email: input.email || null,
-        city: 'دمشق',
-        interestedIn: course?.courseType,
-        sourceId: source.id,
-        status: 'NEW',
-        notes: noteLines.join('\n'),
-      },
+    const leadId = await prisma.$transaction(async (tx) => {
+      const customer = await createCustomerForPerson(
+        {
+          fullName: input.fullName,
+          phone: input.phone,
+          whatsapp: input.whatsapp,
+          email: input.email,
+          city: 'دمشق',
+        },
+        tx,
+      );
+      const lead = await tx.lead.create({
+        data: {
+          fullName: input.fullName,
+          phone: input.phone,
+          whatsapp: input.whatsapp || null,
+          email: input.email || null,
+          city: 'دمشق',
+          interestedIn: course?.courseType,
+          sourceId: source.id,
+          customerId: customer.id,
+          status: 'NEW',
+          notes: noteLines.join('\n'),
+        },
+        select: { id: true },
+      });
+      await tx.consentRecord.create({
+        data: {
+          customerId: customer.id,
+          leadId: lead.id,
+          purpose: INQUIRY_CONSENT_PURPOSE,
+          version: CONSENT_VERSION,
+          source: 'public_inquiry_form',
+          ipAddress: context.ip ?? null,
+        },
+      });
+      return lead.id;
+    });
+
+    await notifyRoles(['ADMIN', 'MANAGER'], {
+      type: 'LEAD_CREATED',
+      title: 'استفسار جديد من الموقع',
+      body: `${input.fullName} — ${input.phone}`,
+      link: `/admin/leads/${leadId}`,
+      entityType: 'Lead',
+      entityId: leadId,
+      dedupeKey: `lead-created-${leadId}`,
     });
 
     return { duplicate: false };

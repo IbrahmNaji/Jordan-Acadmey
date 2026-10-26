@@ -3,6 +3,8 @@ import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import type { AuthUser } from '../../middleware/auth';
 import { assertLeadAccess, leadAccessWhere } from '../../utils/access';
+import { createCustomerForPerson } from '../../utils/customer';
+import { notifyUser } from '../../utils/notifications';
 
 interface CreateInput {
   fullName: string;
@@ -63,29 +65,56 @@ export class LeadsService {
       if (!assignee) throw new AppError(400, 'INVALID_ASSIGNEE');
     }
 
-    return prisma.lead.create({
-      data: {
-        fullName: input.fullName.trim(),
-        phone: input.phone.trim(),
-        whatsapp: input.whatsapp?.trim() || null,
-        email: input.email?.trim().toLowerCase() || null,
-        city: input.city?.trim() || null,
-        age: input.age ?? null,
-        interestedIn: input.interestedIn ?? null,
-        sourceId: input.sourceId ?? null,
-        assignedToId,
-        notes: input.notes?.trim() || null,
-        status: 'NEW',
-        activities: {
-          create: {
-            userId: user.id,
-            type: 'NOTE',
-            content: 'تم إنشاء الاستفسار',
+    const lead = await prisma.$transaction(async (tx) => {
+      const customer = await createCustomerForPerson(
+        {
+          fullName: input.fullName,
+          phone: input.phone,
+          whatsapp: input.whatsapp,
+          email: input.email,
+          city: input.city,
+        },
+        tx,
+      );
+      return tx.lead.create({
+        data: {
+          fullName: input.fullName.trim(),
+          phone: input.phone.trim(),
+          whatsapp: input.whatsapp?.trim() || null,
+          email: input.email?.trim().toLowerCase() || null,
+          city: input.city?.trim() || null,
+          age: input.age ?? null,
+          interestedIn: input.interestedIn ?? null,
+          sourceId: input.sourceId ?? null,
+          assignedToId,
+          customerId: customer.id,
+          notes: input.notes?.trim() || null,
+          status: 'NEW',
+          activities: {
+            create: {
+              userId: user.id,
+              type: 'NOTE',
+              content: 'تم إنشاء الاستفسار',
+            },
           },
         },
-      },
-      include: { source: true, assignedTo: { select: { fullName: true } } },
+        include: { source: true, assignedTo: { select: { fullName: true } } },
+      });
     });
+
+    if (assignedToId && assignedToId !== user.id) {
+      await notifyUser(assignedToId, {
+        type: 'LEAD_ASSIGNED',
+        title: 'تم إسناد استفسار إليك',
+        body: lead.fullName,
+        link: `/admin/leads/${lead.id}`,
+        entityType: 'Lead',
+        entityId: lead.id,
+        dedupeKey: `lead-assigned-${lead.id}-${assignedToId}`,
+      });
+    }
+
+    return lead;
   }
 
   async list(
@@ -225,7 +254,7 @@ export class LeadsService {
       if (!assignee) throw new AppError(400, 'INVALID_ASSIGNEE');
     }
 
-    return prisma.lead.update({
+    const updated = await prisma.lead.update({
       where: { id },
       data: {
         assignedToId,
@@ -238,6 +267,20 @@ export class LeadsService {
         },
       },
     });
+
+    if (assignedToId && assignedToId !== actor.id) {
+      await notifyUser(assignedToId, {
+        type: 'LEAD_ASSIGNED',
+        title: 'تم إسناد استفسار إليك',
+        body: updated.fullName,
+        link: `/admin/leads/${updated.id}`,
+        entityType: 'Lead',
+        entityId: updated.id,
+        dedupeKey: `lead-assigned-${updated.id}-${assignedToId}-${updated.updatedAt.getTime()}`,
+      });
+    }
+
+    return updated;
   }
 
   async setFollowUp(id: string, nextFollowUpAt: Date | null, user: AuthUser) {

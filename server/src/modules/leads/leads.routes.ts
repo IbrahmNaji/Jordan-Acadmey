@@ -5,6 +5,7 @@ import { validate } from '../../middleware/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { AppError } from '../../middleware/errorHandler';
 import { LeadsService } from './leads.service';
+import { recordAudit, requestIp } from '../../utils/audit';
 
 const router = Router();
 const service = new LeadsService();
@@ -85,7 +86,16 @@ router.post(
   requirePermission('leads:write'),
   validate({ body: createSchema }),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await service.create(req.body, req.user!));
+    const lead = await service.create(req.body, req.user!);
+    await recordAudit({
+      actor: req.user,
+      action: 'lead.create',
+      entityType: 'Lead',
+      entityId: lead.id,
+      summary: 'إنشاء استفسار',
+      ip: requestIp(req),
+    });
+    res.status(201).json(lead);
   })
 );
 
@@ -111,13 +121,22 @@ router.patch(
   requirePermission('leads:write'),
   validate({ body: updateSchema }),
   asyncHandler(async (req, res) => {
-    res.json(
-      await service.update(
-        leadId(req.params.id),
-        req.body as Parameters<LeadsService['update']>[1],
-        req.user!,
-      ),
+    const id = leadId(req.params.id);
+    const updated = await service.update(
+      id,
+      req.body as Parameters<LeadsService['update']>[1],
+      req.user!,
     );
+    await recordAudit({
+      actor: req.user,
+      action: 'lead.update',
+      entityType: 'Lead',
+      entityId: id,
+      summary: 'تحديث بيانات الاستفسار',
+      metadata: { fields: Object.keys(req.body) },
+      ip: requestIp(req),
+    });
+    res.json(updated);
   })
 );
 
@@ -133,14 +152,23 @@ router.patch(
       .strict(),
   }),
   asyncHandler(async (req, res) => {
-    res.json(
-      await service.changeStatus(
-        leadId(req.params.id),
-        req.body.status,
-        req.user!,
-        req.body.reason,
-      ),
+    const id = leadId(req.params.id);
+    const updated = await service.changeStatus(
+      id,
+      req.body.status,
+      req.user!,
+      req.body.reason,
     );
+    await recordAudit({
+      actor: req.user,
+      action: 'lead.status_change',
+      entityType: 'Lead',
+      entityId: id,
+      summary: `تغيير حالة الاستفسار إلى ${req.body.status}`,
+      metadata: { status: req.body.status, reason: req.body.reason ?? null },
+      ip: requestIp(req),
+    });
+    res.json(updated);
   })
 );
 
@@ -149,13 +177,20 @@ router.patch(
   requirePermission('leads:assign'),
   validate({ body: z.object({ assignedToId: uuid.nullable() }).strict() }),
   asyncHandler(async (req, res) => {
-    res.json(
-      await service.assign(
-        leadId(req.params.id),
-        req.body.assignedToId,
-        req.user!,
-      ),
-    );
+    const id = leadId(req.params.id);
+    const updated = await service.assign(id, req.body.assignedToId, req.user!);
+    await recordAudit({
+      actor: req.user,
+      action: 'lead.assign',
+      entityType: 'Lead',
+      entityId: id,
+      summary: req.body.assignedToId
+        ? 'إسناد الاستفسار إلى موظف'
+        : 'إلغاء إسناد الاستفسار',
+      metadata: { assignedToId: req.body.assignedToId },
+      ip: requestIp(req),
+    });
+    res.json(updated);
   })
 );
 

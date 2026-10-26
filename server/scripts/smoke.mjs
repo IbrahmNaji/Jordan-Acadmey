@@ -24,6 +24,8 @@ if (process.env.NODE_ENV === 'production') {
 const prisma = new PrismaClient();
 const createdUserIds = [];
 const createdLeadIds = [];
+const createdCustomerIds = [];
+let smokeMaskedEmail = null;
 let passed = 0;
 const failures = [];
 
@@ -111,9 +113,16 @@ async function main() {
     if (!ready) throw new Error(`Server did not start:\n${serverLog}`);
 
     console.log('\nFixtures');
+    const unlinkedBefore = await prisma.lead.count({ where: { customerId: null } });
+    check(
+      'pre-existing leads are linked to customers',
+      unlinkedBefore === 0,
+      `${unlinkedBefore} unlinked`,
+    );
     const admin = await makeUser('ADMIN', 'admin');
     const manager = await makeUser('MANAGER', 'manager');
     const agent = await makeUser('AGENT', 'agent');
+    smokeMaskedEmail = `${admin.email.slice(0, 1)}***@${admin.email.split('@')[1]}`;
     console.log(`  created ${createdUserIds.length} throwaway users`);
 
     console.log('\nAuth');
@@ -166,7 +175,10 @@ async function main() {
       token: agentToken,
       body: { fullName: 'Smoke Forged Assign', phone: '0900000003', assignedToId: manager.id },
     });
-    if (massAssign.status === 201) createdLeadIds.push(massAssign.data.id);
+    if (massAssign.status === 201) {
+      createdLeadIds.push(massAssign.data.id);
+      if (massAssign.data.customerId) createdCustomerIds.push(massAssign.data.customerId);
+    }
     check('agent-created lead is self-assigned', massAssign.status === 201 && massAssign.data?.assignedToId === agent.id, `status ${massAssign.status}`);
 
     const unknownField = await api('PATCH', `/leads/${agentLead.id}`, {
@@ -281,6 +293,112 @@ async function main() {
     const oldSession = await api('GET', '/auth/me', { token: managerToken });
     check('existing access token survives password change', oldSession.status === 200);
 
+    console.log('\nShared customers and consent');
+    const inquiryPhone = `09${String(randomBytes(4).readUInt32BE(0)).slice(0, 8)}`;
+    const inquiry = await api('POST', '/public/inquiries', {
+      body: {
+        fullName: 'Smoke Public Inquiry',
+        phone: inquiryPhone,
+        contactMethod: 'PHONE',
+        consent: true,
+      },
+    });
+    check('public inquiry accepted', inquiry.status === 201, `status ${inquiry.status}`);
+    const inquiryLead = await prisma.lead.findFirst({
+      where: { phone: inquiryPhone },
+      select: { id: true, customerId: true },
+    });
+    if (inquiryLead) {
+      createdLeadIds.push(inquiryLead.id);
+      if (inquiryLead.customerId) createdCustomerIds.push(inquiryLead.customerId);
+    }
+    check(
+      'inquiry lead linked to a customer',
+      !!inquiryLead?.customerId,
+      JSON.stringify(inquiryLead),
+    );
+    const consent = inquiryLead
+      ? await prisma.consentRecord.findFirst({ where: { leadId: inquiryLead.id } })
+      : null;
+    check(
+      'consent recorded with version',
+      !!consent && consent.purpose === 'PRIVACY_POLICY_INQUIRY' && !!consent.version,
+      JSON.stringify(consent),
+    );
+    check(
+      'API-created leads are linked to customers',
+      !!massAssign.data?.customerId,
+      JSON.stringify(massAssign.data?.customerId),
+    );
+
+    console.log('\nNotifications');
+    const assign = await api('PATCH', `/leads/${agentLead.id}/assign`, {
+      token: adminToken,
+      body: { assignedToId: agent.id },
+    });
+    check('admin assigns lead', assign.status === 200, `status ${assign.status}`);
+    const agentInbox = await api('GET', '/notifications?unread=true', { token: agentToken });
+    const assignedNote = (agentInbox.data?.items ?? []).find(
+      (item) => item.type === 'LEAD_ASSIGNED' && item.entityId === agentLead.id,
+    );
+    check(
+      'assignee receives unread notification',
+      agentInbox.status === 200 && !!assignedNote && agentInbox.data.unreadCount >= 1,
+      `status ${agentInbox.status}`,
+    );
+    if (assignedNote) {
+      const read = await api('PATCH', `/notifications/${assignedNote.id}/read`, {
+        token: agentToken,
+      });
+      check('notification marked read', read.status === 204, `status ${read.status}`);
+    }
+    const markAll = await api('POST', '/notifications/read-all', { token: agentToken });
+    check('mark all notifications read', markAll.status === 200, `status ${markAll.status}`);
+    const afterRead = await api('GET', '/notifications', { token: agentToken });
+    check(
+      'unread count is zero after read-all',
+      afterRead.status === 200 && afterRead.data?.unreadCount === 0,
+      `unread ${afterRead.data?.unreadCount}`,
+    );
+    const adminInbox = await api('GET', '/notifications', { token: adminToken });
+    check(
+      'managers receive inquiry notifications',
+      adminInbox.status === 200 &&
+        adminInbox.data.items.some((item) => item.type === 'LEAD_CREATED'),
+      `status ${adminInbox.status}`,
+    );
+
+    console.log('\nAudit log');
+    const agentAudit = await api('GET', '/audit-logs', { token: agentToken });
+    check('agent cannot read audit log', agentAudit.status === 403, `status ${agentAudit.status}`);
+    const adminAudit = await api('GET', '/audit-logs?entityType=Lead&pageSize=100', {
+      token: adminToken,
+    });
+    check(
+      'audit log recorded lead actions',
+      adminAudit.status === 200 &&
+        adminAudit.data.items.some(
+          (entry) => entry.action === 'lead.assign' && entry.entityId === agentLead.id,
+        ),
+      `status ${adminAudit.status}`,
+    );
+    const maskedEmail = `${admin.email.slice(0, 1)}***@${admin.email.split('@')[1]}`;
+    const failedAudit = await api(
+      'GET',
+      `/audit-logs?action=login_failed&pageSize=100`,
+      { token: adminToken },
+    );
+    check(
+      'failed login audited without full email',
+      failedAudit.status === 200 &&
+        failedAudit.data.items.some(
+          (entry) =>
+            entry.metadata?.email === maskedEmail &&
+            !JSON.stringify(entry.metadata).includes(admin.email),
+        ),
+      `status ${failedAudit.status}`,
+    );
+
     console.log('\nError handling');
     const missing = await api('GET', '/does-not-exist');
     check('unknown api route returns 404', missing.status === 404, `status ${missing.status}`);
@@ -290,14 +408,28 @@ async function main() {
     console.log('\nCleanup');
     try {
       if (createdLeadIds.length) {
+        await prisma.consentRecord.deleteMany({ where: { leadId: { in: createdLeadIds } } });
+        await prisma.notification.deleteMany({ where: { entityId: { in: createdLeadIds } } });
+        await prisma.auditLog.deleteMany({ where: { entityId: { in: createdLeadIds } } });
         await prisma.activity.deleteMany({ where: { leadId: { in: createdLeadIds } } });
         await prisma.lead.deleteMany({ where: { id: { in: createdLeadIds } } });
       }
+      if (createdCustomerIds.length) {
+        await prisma.customer.deleteMany({ where: { id: { in: createdCustomerIds } } });
+      }
       if (createdUserIds.length) {
+        await prisma.auditLog.deleteMany({ where: { actorId: { in: createdUserIds } } });
         await prisma.activity.deleteMany({ where: { userId: { in: createdUserIds } } });
         await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
       }
-      console.log(`  removed ${createdLeadIds.length} leads, ${createdUserIds.length} users`);
+      if (smokeMaskedEmail) {
+        await prisma.auditLog.deleteMany({
+          where: { action: 'auth.login_failed', metadata: { path: ['email'], equals: smokeMaskedEmail } },
+        });
+      }
+      console.log(
+        `  removed ${createdLeadIds.length} leads, ${createdCustomerIds.length} customers, ${createdUserIds.length} users`,
+      );
     } catch (error) {
       console.error('Cleanup failed:', error.message);
     }

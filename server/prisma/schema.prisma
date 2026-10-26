@@ -22,6 +22,8 @@ model User {
   assignedLeads Lead[]         @relation("assignedLeads")
   activities    Activity[]
   refreshTokens RefreshToken[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
 
   @@index([role])
 }
@@ -87,6 +89,8 @@ model Lead {
   status          LeadStatus     @default(NEW)
   assignedToId    String?
   assignedTo      User?          @relation("assignedLeads", fields: [assignedToId], references: [id])
+  customerId      String?
+  customer        Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
   notes           String?
   nextFollowUpAt  DateTime?
   lastContactedAt DateTime?
@@ -97,12 +101,14 @@ model Lead {
 
   enrollment Enrollment?
   activities Activity[]
+  consents   ConsentRecord[]
 
   @@index([status])
   @@index([nextFollowUpAt])
   @@index([assignedToId])
   @@index([phone])
   @@index([createdAt])
+  @@index([customerId])
 }
 
 enum CourseType {
@@ -196,4 +202,106 @@ enum ActivityType {
   STATUS_CHANGE
   FOLLOW_UP_SET
   ENROLLMENT
+}
+
+// Shared identity kept separate from any single business line. Leads,
+// enrollments, deals, and work orders reference this record instead of
+// duplicating contact data. Records are archived, never hard-deleted.
+model Customer {
+  id         String    @id @default(uuid())
+  fullName   String
+  phone      String?
+  email      String?
+  city       String?
+  notes      String?
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  contacts CustomerContact[]
+  leads    Lead[]
+  consents ConsentRecord[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([createdAt])
+}
+
+enum ContactType {
+  PHONE
+  EMAIL
+  WHATSAPP
+  OTHER
+}
+
+model CustomerContact {
+  id         String      @id @default(uuid())
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       ContactType
+  value      String
+  label      String?
+  isPrimary  Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([customerId, type, value])
+  @@index([value])
+  @@index([customerId])
+}
+
+model ConsentRecord {
+  id         String    @id @default(uuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  leadId     String?
+  lead       Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  purpose    String
+  version    String
+  grantedAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  source     String?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId])
+  @@index([leadId])
+  @@index([purpose])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole  Role?
+  action     String
+  entityType String
+  entityId   String?
+  summary    String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([action])
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  body       String?
+  link       String?
+  entityType String?
+  entityId   String?
+  dedupeKey  String?   @unique
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([createdAt])
 }

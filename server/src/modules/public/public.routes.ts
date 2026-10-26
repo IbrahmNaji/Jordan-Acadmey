@@ -74,7 +74,7 @@ router.post(
   inquiryLimiter,
   validate({ body: inquirySchema }),
   asyncHandler(async (req, res) => {
-    await service.createInquiry(req.body);
+    await service.createInquiry(req.body, { ip: req.ip });
     res.status(201).json({ ok: true });
   }),
 );

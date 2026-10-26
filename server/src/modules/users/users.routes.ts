@@ -8,6 +8,7 @@ import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { passwordSchema } from '../../utils/validation';
+import { recordAudit, requestIp } from '../../utils/audit';
 
 const router = Router();
 router.use(authenticate);
@@ -84,6 +85,16 @@ router.post(
       select: publicUserSelect,
     });
 
+    await recordAudit({
+      actor: req.user,
+      action: 'user.create',
+      entityType: 'User',
+      entityId: user.id,
+      summary: 'إنشاء مستخدم',
+      metadata: { role },
+      ip: requestIp(req),
+    });
+
     res.status(201).json(user);
   })
 );
@@ -149,18 +160,31 @@ router.patch(
       });
     }
 
-    res.json(
-      await prisma.user.update({
-        where: { id },
-        data: {
-          ...(body.fullName !== undefined && { fullName: body.fullName }),
-          ...(body.phone !== undefined && { phone: body.phone }),
-          ...(body.role !== undefined && { role: body.role }),
-          ...(body.isActive !== undefined && { isActive: body.isActive }),
-        },
-        select: publicUserSelect,
-      })
-    );
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        ...(body.fullName !== undefined && { fullName: body.fullName }),
+        ...(body.phone !== undefined && { phone: body.phone }),
+        ...(body.role !== undefined && { role: body.role }),
+        ...(body.isActive !== undefined && { isActive: body.isActive }),
+      },
+      select: publicUserSelect,
+    });
+
+    await recordAudit({
+      actor: req.user,
+      action: 'user.update',
+      entityType: 'User',
+      entityId: id,
+      summary: 'تعديل حساب مستخدم',
+      metadata: {
+        role: body.role ?? null,
+        isActive: body.isActive ?? null,
+      },
+      ip: requestIp(req),
+    });
+
+    res.json(updated);
   })
 );
 
@@ -186,6 +210,15 @@ router.post(
         data: { revokedAt: new Date() },
       }),
     ]);
+
+    await recordAudit({
+      actor: req.user,
+      action: 'user.password_reset',
+      entityType: 'User',
+      entityId: id,
+      summary: 'إعادة تعيين كلمة مرور مستخدم',
+      ip: requestIp(req),
+    });
 
     res.status(204).send();
   })
