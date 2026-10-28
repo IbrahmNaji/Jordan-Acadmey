@@ -7,7 +7,7 @@ services:
     runtime: node
     rootDir: server
     region: frankfurt
-    plan: 0.5c-512mb # Paid web-service plan; requires explicit approval before provisioning.
+    plan: free # Free web-service plan; it spins down after inactivity.
     autoDeployTrigger: 'off'
     buildCommand: npm ci --include=dev && npm run db:generate && npm run build
     preDeployCommand: npm run db:deploy
@@ -70,5 +70,5 @@ databases:
     user: academy_crm_user
     postgresMajorVersion: "17"
     region: frankfurt
-    plan: 0.5c-1g # Paid database plan; requires explicit approval before provisioning.
+    plan: free # Free PostgreSQL plan; it expires after 30 days and has no backups.
     ipAllowList: []
