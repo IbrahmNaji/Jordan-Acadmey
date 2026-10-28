@@ -5,6 +5,7 @@ import type {
   InquiryResponse,
   PublicCourse,
   PublicCourseDetail,
+  PublicInstructor,
 } from '../types/public';
 
 export const publicApi = axios.create({
@@ -16,6 +17,13 @@ export const publicApi = axios.create({
 export async function fetchPublicCourses(): Promise<PublicCourse[]> {
   const { data } = await publicApi.get<{ items: PublicCourse[] }>(
     '/public/courses',
+  );
+  return data.items;
+}
+
+export async function fetchPublicInstructors(): Promise<PublicInstructor[]> {
+  const { data } = await publicApi.get<{ items: PublicInstructor[] }>(
+    '/public/instructors',
   );
   return data.items;
 }

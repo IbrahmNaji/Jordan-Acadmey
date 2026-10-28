@@ -26,10 +26,16 @@ const Enrollments = lazy(() => import('./pages/Enrollments'));
 const Reports = lazy(() => import('./pages/Reports'));
 const UsersPage = lazy(() => import('./pages/Users'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const Vehicles = lazy(() => import('./pages/Vehicles'));
+const Brokerage = lazy(() => import('./pages/Brokerage'));
 const Academy = lazy(() => import('./pages/Academy'));
 const Attendance = lazy(() => import('./pages/Attendance'));
+const Operations = lazy(() => import('./pages/Operations'));
 
 const CoursesPage = lazy(() => import('./pages/public/CoursesPage'));
+const MarketplacePage = lazy(() => import('./pages/public/MarketplacePage'));
+const SparePartsPage = lazy(() => import('./pages/public/SparePartsPage'));
+
 const CourseDetailPage = lazy(() => import('./pages/public/CourseDetailPage'));
 const WorkshopPage = lazy(() => import('./pages/public/WorkshopPage'));
 const AboutPage = lazy(() => import('./pages/public/AboutPage'));
@@ -130,6 +136,8 @@ export default function App() {
               <Route element={<PublicLayout />}>
                 <Route index element={<HomePage />} />
                 <Route path="courses" element={<CoursesPage />} />
+                <Route path="marketplace" element={<MarketplacePage />} />
+                <Route path="spare-parts" element={<SparePartsPage />} />
                 <Route path="courses/:slug" element={<CourseDetailPage />} />
                 <Route path="workshop" element={<WorkshopPage />} />
                 <Route path="about" element={<AboutPage />} />
@@ -152,6 +160,9 @@ export default function App() {
               >
                 <Route index element={<Dashboard />} />
                 <Route path="leads" element={<Leads />} />
+                <Route path="vehicles" element={<Vehicles />} />
+                <Route path="brokerage" element={<Brokerage />} />
+                <Route path="operations" element={<RequireRole roles={['ADMIN','MANAGER']}><Operations /></RequireRole>} />
                 <Route path="leads/:id" element={<LeadDetails />} />
                 <Route path="follow-ups" element={<FollowUps />} />
                 <Route path="campaigns" element={<Campaigns />} />

@@ -11,6 +11,14 @@ import { PrismaClient } from '@prisma/client';
 const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(serverDir, '.env') });
 
+const smokeDatabaseUrl=(process.env.SMOKE_DATABASE_URL||'').trim();
+const configuredDatabaseUrl=(process.env.DATABASE_URL||'').trim();
+let smokeDatabaseName='';
+try{smokeDatabaseName=decodeURIComponent(new URL(smokeDatabaseUrl).pathname.slice(1));}catch{}
+if(!smokeDatabaseUrl||smokeDatabaseUrl===configuredDatabaseUrl||!/(?:_test|_smoke)$/i.test(smokeDatabaseName)){console.error('Refusing smoke test: set SMOKE_DATABASE_URL to a separate database whose name ends in _test or _smoke.');process.exit(1);}
+process.env.DATABASE_URL=smokeDatabaseUrl;
+
+
 const PORT = Number(process.env.SMOKE_PORT || 4199);
 const BASE = `http://127.0.0.1:${PORT}/api`;
 const PASSWORD = `Smoke-${randomBytes(9).toString('base64url')}1`;
@@ -28,6 +36,11 @@ const createdCustomerIds = [];
 const createdCourseIds = [];
 const createdBatchIds = [];
 const createdEnrollmentIds = [];
+const createdVehicleIds = [];
+const createdDealIds = [];
+const createdWorkshopRequestIds = [];
+const createdPartsRequestIds = [];
+const preservedSmokeSourceIds = new Set();
 let smokeMaskedEmail = null;
 let passed = 0;
 const failures = [];
@@ -116,6 +129,9 @@ async function main() {
     if (!ready) throw new Error(`Server did not start:\n${serverLog}`);
 
     console.log('\nFixtures');
+    const existingPublicSources = await prisma.campaignSource.findMany({ where: { name: { in: ['الموقع الإلكتروني', 'استفسار سوق المركبات'] } }, select: { id: true } });
+    for (const source of existingPublicSources) preservedSmokeSourceIds.add(source.id);
+
     const unlinkedBefore = await prisma.lead.count({ where: { customerId: null } });
     check(
       'pre-existing leads are linked to customers',
@@ -243,6 +259,19 @@ async function main() {
     }
 
     console.log('\nAcademy catalog and administration');
+    for (let i = 0; i < 4; i += 1) {
+      const fixture = await prisma.course.create({
+        data: {
+          slug: 'smoke-public-' + randomBytes(4).toString('hex'),
+          title: 'Smoke Public Course ' + i, shortTitle: 'Smoke ' + i, courseType: 'MECHANICS',
+          tagline: 'Smoke fixture', summary: 'Temporary isolated smoke fixture.',
+          description: ['Smoke fixture'], focus: [], format: 'Onsite', note: 'Temporary',
+          image: '/images/courses/mechanics.jpg', imageAlt: 'Smoke fixture', status: 'PUBLISHED',
+        },
+        select: { id: true },
+      });
+      createdCourseIds.push(fixture.id);
+    }
     const publicCourses = await api('GET', '/public/courses');
     const publicList = Array.isArray(publicCourses.data?.items)
       ? publicCourses.data.items
@@ -552,7 +581,9 @@ async function main() {
         consent: true,
       },
     });
-    check('public inquiry accepted', inquiry.status === 201, `status ${inquiry.status}`);
+    check('public inquiry accepted', inquiry.status === 201 && inquiry.data?.duplicate === false, 'status ' + inquiry.status);
+    const duplicateInquiry = await api('POST', '/public/inquiries', { body: { fullName: 'Smoke Public Inquiry', phone: inquiryPhone, contactMethod: 'PHONE', consent: true } });
+    check('recent duplicate inquiry is identified', duplicateInquiry.status === 200 && duplicateInquiry.data?.duplicate === true);
     const inquiryLead = await prisma.lead.findFirst({
       where: { phone: inquiryPhone },
       select: { id: true, customerId: true },
@@ -617,6 +648,94 @@ async function main() {
       `status ${adminInbox.status}`,
     );
 
+    console.log('\nVehicle brokerage');
+    const owner = await prisma.customer.create({data:{fullName:'Smoke vehicle owner',phone:'+1999'+randomBytes(4).toString('hex')},select:{id:true}});
+    createdCustomerIds.push(owner.id);
+    await prisma.lead.update({where:{id:agentLead.id},data:{customerId:owner.id}});
+    const payload={ownerCustomerId:owner.id,make:'Smoke',model:'Testcar',year:2022,city:'Smoke City',askingPrice:10000,currency:'USD',mediaPaths:[],ownerAuthorized:true,ownerAuthorizationMethod:'IN_PERSON',ownerAuthorizationNote:'Smoke owner permission recorded.'};
+    const draft=await api('POST','/vehicles',{token:adminToken,body:payload});check('vehicle listing is created as draft',draft.status===201&&draft.data?.status==='DRAFT');
+    const id=draft.data?.id;if(id)createdVehicleIds.push(id);
+    check('draft is not public',(await api('GET','/public/vehicles/'+id)).status===404);
+    check('agent cannot access an unassigned listing',(await api('GET','/vehicles/'+id,{token:agentToken})).status===404);
+    const agentDraft=await api('POST','/vehicles',{token:agentToken,body:payload});check('agent listing is assigned to self',agentDraft.status===201&&agentDraft.data?.assignedToId===agent.id);if(agentDraft.data?.id)createdVehicleIds.push(agentDraft.data.id);
+    check('agent cannot approve listing',(await api('POST','/vehicles/'+id+'/review',{token:agentToken,body:{status:'APPROVED'}})).status===403);
+    const pending=await api('POST','/vehicles/'+id+'/submit',{token:adminToken});check('listing awaits moderation',pending.status===200&&pending.data?.status==='PENDING');
+    check('pending listing stays private',(await api('GET','/public/vehicles/'+id)).status===404);
+    const approved=await api('POST','/vehicles/'+id+'/review',{token:managerToken,body:{status:'APPROVED'}});
+    check('manager approves listing',approved.status===200&&approved.data?.status==='APPROVED');
+    const publicVehicle=(await api('GET','/public/vehicles')).data?.items?.find(v=>v.id===id);
+    check('public listing has no owner fields',!!publicVehicle&&!('owner' in publicVehicle)&&!('ownerCustomerId' in publicVehicle));
+    check('public listing makes no unsupported inspection claim',!!publicVehicle&&!('conditionVerifiedAt' in publicVehicle)&&!('inspectionReference' in publicVehicle));
+    const buyer=await prisma.customer.create({data:{fullName:'Smoke vehicle buyer',phone:'+1777'+randomBytes(4).toString('hex')},select:{id:true}});createdCustomerIds.push(buyer.id);
+    const createdDeal=await api('POST','/brokerage/deals',{token:adminToken,body:{listingId:id,buyerCustomerId:buyer.id,expectedAmount:9500,currency:'USD'}});
+    check('brokerage deal created against approved listing',createdDeal.status===201&&createdDeal.data?.status==='NEW_INQUIRY','status '+createdDeal.status+' error '+createdDeal.data?.error);
+    const dealId=createdDeal.data?.id;if(dealId)createdDealIds.push(dealId);
+    check('agent cannot see unassigned deal',(await api('GET','/brokerage/deals/'+dealId,{token:agentToken})).status===404);
+    check('agent cannot read brokerage financial permissions',(await api('POST','/brokerage/deals/'+dealId+'/commissions',{token:agentToken,body:{}})).status===403);
+    const contactStage=await api('PATCH','/brokerage/deals/'+dealId+'/status',{token:adminToken,body:{status:'CONTACTED'}});
+    check('deal transition recorded',contactStage.status===200&&contactStage.data?.history?.some(x=>x.to==='CONTACTED'));
+    await api('PATCH','/brokerage/deals/'+dealId+'/status',{token:adminToken,body:{status:'NEGOTIATION'}});
+    await api('PATCH','/brokerage/deals/'+dealId+'/status',{token:adminToken,body:{status:'AGREEMENT_PENDING'}});
+    const agreement=await api('POST','/brokerage/deals/'+dealId+'/commissions',{token:managerToken,body:{payer:'SELLER',calculationType:'PERCENTAGE',calculationBasis:'Final agreed vehicle transaction amount',basisAmount:10000,rateOrAmount:2,currency:'USD',agreementReference:'Smoke written agreement'}});
+    check('commission agreement uses explicit terms',agreement.status===201&&Number(agreement.data?.amountDue)===200,'status '+agreement.status+' due '+agreement.data?.amountDue);
+    if(agreement.data?.id){const paymentFirst=await api('POST','/brokerage/commissions/'+agreement.data.id+'/payments',{token:managerToken,body:{amount:100,reference:'smoke-partial'}});const paymentOver=await api('POST','/brokerage/commissions/'+agreement.data.id+'/payments',{token:managerToken,body:{amount:101,reference:'smoke-over'}});const paymentRest=await api('POST','/brokerage/commissions/'+agreement.data.id+'/payments',{token:managerToken,body:{amount:100,reference:'smoke-final'}});check('commission payment history and balance enforced',paymentFirst.status===201&&paymentOver.status===400&&paymentRest.status===201&&paymentRest.data?.balance===0);}
+    const completedDeal=await api('PATCH','/brokerage/deals/'+dealId+'/status',{token:adminToken,body:{status:'COMPLETED',finalAmount:10000}});
+    check('deal completion requires and stores final amount',completedDeal.status===200&&Number(completedDeal.data?.finalAmount)===10000);
+
+    console.log('\nWorkshop and parts request persistence');
+    const workshopRequest=await api('POST','/public/workshop-requests',{body:{fullName:'Smoke workshop customer',phone:'+1666'+String(randomBytes(4).readUInt32BE(0)).slice(0,8),vehicleMake:'Smoke',vehicleModel:'Testcar',vehicleYear:2021,requestedService:'Scheduled maintenance',reportedSymptoms:'Customer reports a noise to be checked',consent:true}});
+    const workshopId=workshopRequest.data?.requestId;if(workshopId)createdWorkshopRequestIds.push(workshopId);
+    check('public workshop request is stored pending confirmation',workshopRequest.status===201&&workshopRequest.data?.status==='NEW',JSON.stringify(workshopRequest));
+    check('agents cannot access workshop administration',(await api('GET','/workshop/requests',{token:agentToken})).status===403);
+    const workshopList=await api('GET','/workshop/requests',{token:managerToken});
+    check('managers can review workshop requests',workshopList.status===200&&workshopList.data.items.some(x=>x.id===workshopId),JSON.stringify(workshopList.data));
+    await api('PATCH','/workshop/requests/'+workshopId+'/status',{token:managerToken,body:{status:'REVIEWING'}});
+    const workshopConfirmed=await api('PATCH','/workshop/requests/'+workshopId+'/status',{token:managerToken,body:{status:'CONFIRMED'}});
+    const workOrder=await api('POST','/workshop/requests/'+workshopId+'/work-order',{token:managerToken,body:{currency:'SYP'}});
+    const workOrderId=workOrder.data?.id;
+    check('confirmed workshop request becomes work order',workshopConfirmed.status===200&&workOrder.status===201);
+    const unapprovedProgress=await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'DIAGNOSING',confirmedDiagnosis:'Technician recorded a test finding.'}});
+    await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'ESTIMATE_PENDING'}});
+    await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'AWAITING_CUSTOMER_APPROVAL',estimateAmount:500}});
+    const blockedProgress=await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'IN_PROGRESS'}});
+    await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'IN_PROGRESS',customerApprovalReference:'Smoke customer approval recorded'}});
+    const inspection=await api('POST','/workshop/work-orders/'+workOrderId+'/inspections',{token:managerToken,body:{checklist:{brakes:'OK',lights:'NOT_CHECKED'},confirmedFindings:'Recorded a smoke-test finding only.',recommendations:'Recheck at the next service.'}});
+    const quality=await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'QUALITY_CHECK'}});
+    const delivery=await api('PATCH','/workshop/work-orders/'+workOrderId,{token:managerToken,body:{status:'DELIVERED',finalAmount:500}});
+    const workshopPayment=await api('POST','/workshop/work-orders/'+workOrderId+'/payments',{token:managerToken,body:{amount:500,reference:'smoke-workshop-payment'}});
+    check('work order requires customer approval and recorded inspection',unapprovedProgress.status===200&&blockedProgress.status===400&&inspection.status===201&&quality.status===200);
+    check('workshop final invoice and payment are independent records',delivery.status===200&&workshopPayment.status===201&&workshopPayment.data?.balance===0);
+
+    const partsRequest=await api('POST','/public/parts-requests',{body:{fullName:'Smoke parts customer',phone:'+1555'+String(randomBytes(4).readUInt32BE(0)).slice(0,8),vehicleMake:'Smoke',vehicleModel:'Testcar',partName:'Brake pad set',partNumber:'SMOKE-001',quantity:2,consent:true}});
+    const partsId=partsRequest.data?.requestId;if(partsId)createdPartsRequestIds.push(partsId);
+    check('public parts request is persisted without stock claims',partsRequest.status===201&&partsRequest.data?.status==='NEW',JSON.stringify(partsRequest));
+    check('agents cannot access parts sourcing',(await api('GET','/parts/requests',{token:agentToken})).status===403);
+    await api('PATCH','/parts/requests/'+partsId+'/status',{token:managerToken,body:{status:'REVIEWING'}});
+    await api('PATCH','/parts/requests/'+partsId+'/status',{token:managerToken,body:{status:'SOURCING'}});
+    const quoteOne=await api('POST','/parts/requests/'+partsId+'/quotations',{token:managerToken,body:{supplierName:'Smoke test supplier A',quotedPrice:120,currency:'SYP',availability:'AVAILABLE'}});
+    const quoteTwo=await api('POST','/parts/requests/'+partsId+'/quotations',{token:managerToken,body:{supplierName:'Smoke test supplier B',quotedPrice:125,currency:'SYP',availability:'UNCONFIRMED'}});
+    await api('PATCH','/parts/requests/'+partsId+'/status',{token:managerToken,body:{status:'AWAITING_CUSTOMER'}});
+    const blockedQuote=await api('PATCH','/parts/quotations/'+quoteTwo.data?.id+'/decision',{token:managerToken,body:{decision:'APPROVED',customerDecisionReference:'Customer reviewed'}});
+    const acceptedQuote=await api('PATCH','/parts/quotations/'+quoteOne.data?.id+'/decision',{token:managerToken,body:{decision:'APPROVED',customerDecisionReference:'Customer selected quote A'}});
+    const partsApproved=await api('PATCH','/parts/requests/'+partsId+'/status',{token:managerToken,body:{status:'APPROVED'}});
+    const partsOrdered=await api('PATCH','/parts/requests/'+partsId+'/status',{token:managerToken,body:{status:'ORDERED'}});
+    const partsFulfilled=await api('PATCH','/parts/requests/'+partsId+'/status',{token:managerToken,body:{status:'FULFILLED'}});
+    check('parts request supports multiple quotations and rejects unconfirmed availability',quoteOne.status===201&&quoteTwo.status===201&&blockedQuote.status===409&&acceptedQuote.status===200);
+    check('parts fulfillment follows customer-approved quote',partsApproved.status===200&&partsOrdered.status===200&&partsFulfilled.status===200);
+    const lineReport=await api('GET','/reports/business-lines?from=2026-01-01T00:00:00.000Z&to=2026-12-31T23:59:59.999Z',{token:managerToken});
+    const agentLineReport=await api('GET','/reports/business-lines',{token:agentToken});
+    check('business-line reporting keeps brokerage/workshop/parts financials separate',lineReport.status===200&&Array.isArray(lineReport.data?.brokerage?.collected)&&Array.isArray(lineReport.data?.workshop?.invoices)&&typeof lineReport.data?.parts?.requests==='number');
+    check('agents cannot access consolidated business reports',agentLineReport.status===403);
+    const phone='+1888'+String(randomBytes(4).readUInt32BE(0)).slice(0,8);
+    const vehiclePublicInquiry=await api('POST','/public/vehicles/'+id+'/inquiries',{body:{fullName:'Smoke vehicle inquiry',phone,consent:true}});
+    check('vehicle inquiry is accepted',vehiclePublicInquiry.status===201,'status '+vehiclePublicInquiry.status+' error '+vehiclePublicInquiry.data?.error);
+    const vehicleLeadFixture=await prisma.lead.findFirst({where:{phone},select:{id:true}});if(vehicleLeadFixture)createdLeadIds.push(vehicleLeadFixture.id);
+    const vehicleInquiryActivity=vehicleLeadFixture?await prisma.activity.findFirst({where:{leadId:vehicleLeadFixture.id,type:'VEHICLE_INQUIRY'}}):null;
+    check('vehicle inquiry creates lead and activity',!!vehicleLeadFixture&&!!vehicleInquiryActivity);
+    const notifications=await api('GET','/notifications?unreadOnly=true',{token:adminToken});
+    check('vehicle inquiry notifies administration',notifications.status===200&&notifications.data.items.some(x=>x.type==='VEHICLE_INQUIRY'&&x.entityId===vehicleLeadFixture?.id));
+
+
     console.log('\nAudit log');
     const agentAudit = await api('GET', '/audit-logs', { token: agentToken });
     check('agent cannot read audit log', agentAudit.status === 403, `status ${agentAudit.status}`);
@@ -656,6 +775,7 @@ async function main() {
   } finally {
     console.log('\nCleanup');
     try {
+      if (createdLeadIds.length) { const linkedCustomers = await prisma.lead.findMany({ where: { id: { in: createdLeadIds } }, select: { customerId: true } }); for (const row of linkedCustomers) if (row.customerId && !createdCustomerIds.includes(row.customerId)) createdCustomerIds.push(row.customerId); }
       if (createdLeadIds.length) {
         await prisma.attendance.deleteMany({
           where: { enrollment: { leadId: { in: createdLeadIds } } },
@@ -683,6 +803,30 @@ async function main() {
       if (createdCourseIds.length) {
         await prisma.course.deleteMany({ where: { id: { in: createdCourseIds } } });
       }
+      if (createdVehicleIds.length) {
+        const deals = await prisma.brokerageDeal.findMany({ where: { id: { in: createdDealIds } }, select: { id: true } });
+        if (deals.length) {
+          const agreementIds=(await prisma.commissionAgreement.findMany({where:{dealId:{in:createdDealIds}},select:{id:true}})).map(x=>x.id);
+          await prisma.commissionPayment.deleteMany({where:{agreementId:{in:agreementIds}}});
+          await prisma.commissionAgreement.deleteMany({where:{id:{in:agreementIds}}});
+          await prisma.vehicleViewing.deleteMany({where:{dealId:{in:createdDealIds}}});
+          await prisma.brokerageDealStageHistory.deleteMany({where:{dealId:{in:createdDealIds}}});
+          await prisma.brokerageDeal.deleteMany({where:{id:{in:createdDealIds}}});
+        }
+        await prisma.notification.deleteMany({ where: { entityId: { in: createdVehicleIds } } });
+        await prisma.auditLog.deleteMany({ where: { entityId: { in: createdVehicleIds } } });
+        await prisma.vehicleInquiry.deleteMany({ where: { listingId: { in: createdVehicleIds } } });
+        await prisma.vehicleListing.deleteMany({ where: { id: { in: createdVehicleIds } } });
+      }
+      const requestCustomers=await prisma.customer.findMany({where:{OR:[{workshopRequests:{some:{id:{in:createdWorkshopRequestIds}}}},{partsRequests:{some:{id:{in:createdPartsRequestIds}}}}]},select:{id:true}});
+      const requestCustomerIds=requestCustomers.map(x=>x.id);for(const id of requestCustomerIds)if(!createdCustomerIds.includes(id))createdCustomerIds.push(id);
+      if(createdWorkshopRequestIds.length){const ids=(await prisma.workshopWorkOrder.findMany({where:{requestId:{in:createdWorkshopRequestIds}},select:{id:true}})).map(x=>x.id);await prisma.workshopPayment.deleteMany({where:{workOrderId:{in:ids}}});await prisma.workshopInspectionRecord.deleteMany({where:{workOrderId:{in:ids}}});await prisma.workshopWorkOrder.deleteMany({where:{id:{in:ids}}});await prisma.workshopRequest.deleteMany({where:{id:{in:createdWorkshopRequestIds}}});}
+      if(createdPartsRequestIds.length){await prisma.partsQuotation.deleteMany({where:{requestId:{in:createdPartsRequestIds}}});await prisma.partsRequest.deleteMany({where:{id:{in:createdPartsRequestIds}}});}
+      if(requestCustomerIds.length)await prisma.consentRecord.deleteMany({where:{customerId:{in:requestCustomerIds}}});
+      const operationEntityIds=[...createdWorkshopRequestIds,...createdPartsRequestIds];if(operationEntityIds.length){await prisma.notification.deleteMany({where:{entityId:{in:operationEntityIds}}});await prisma.auditLog.deleteMany({where:{entityId:{in:operationEntityIds}}});}
+      const publicSources = await prisma.campaignSource.findMany({ where: { name: { in: ['الموقع الإلكتروني', 'استفسار سوق المركبات'] }, leads: { none: {} } }, select: { id: true } });
+      const newSourceIds = publicSources.filter((source) => !preservedSmokeSourceIds.has(source.id)).map((source) => source.id);
+      if (newSourceIds.length) await prisma.campaignSource.deleteMany({ where: { id: { in: newSourceIds } } });
       if (createdCustomerIds.length) {
         await prisma.customer.deleteMany({ where: { id: { in: createdCustomerIds } } });
       }

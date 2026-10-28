@@ -8,22 +8,34 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String
-  fullName      String
-  phone         String?
-  role          Role      @default(AGENT)
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  phone        String?
+  role         Role      @default(AGENT)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  assignedLeads Lead[]         @relation("assignedLeads")
-  activities    Activity[]
-  refreshTokens RefreshToken[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
+  assignedLeads           Lead[]           @relation("assignedLeads")
+  activities              Activity[]
+  refreshTokens           RefreshToken[]
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  assignedVehicleListings VehicleListing[] @relation("vehicleListingAssignee")
+  reviewedVehicleListings VehicleListing[] @relation("vehicleListingReviewer")
+  createdBrokerageDeals   BrokerageDeal[]    @relation("brokerageDealCreator")
+  brokerageStageChanges  BrokerageDealStageHistory[]
+  approvedCommissions     CommissionAgreement[] @relation("commissionApprover")
+  recordedCommissionPayments CommissionPayment[]
+  createdVehicleViewings     VehicleViewing[]
+  assignedWorkOrders         WorkshopWorkOrder[] @relation("workOrderTechnician")
+  createdWorkOrders          WorkshopWorkOrder[] @relation("workOrderCreator")
+  inspectionRecords          WorkshopInspectionRecord[]
+  recordedWorkshopPayments   WorkshopPayment[]
+  createdPartsQuotations     PartsQuotation[]
 
   @@index([role])
 }
@@ -76,32 +88,33 @@ enum Channel {
 }
 
 model Lead {
-  id              String         @id @default(uuid())
+  id              String          @id @default(uuid())
   fullName        String
   phone           String
   whatsapp        String?
   email           String?
-  city            String?        @default("دمشق")
+  city            String?         @default("دمشق")
   age             Int?
   interestedIn    CourseType?
   sourceId        String?
   source          CampaignSource? @relation(fields: [sourceId], references: [id])
-  status          LeadStatus     @default(NEW)
+  status          LeadStatus      @default(NEW)
   assignedToId    String?
-  assignedTo      User?          @relation("assignedLeads", fields: [assignedToId], references: [id])
+  assignedTo      User?           @relation("assignedLeads", fields: [assignedToId], references: [id])
   customerId      String?
-  customer        Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer        Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   notes           String?
   nextFollowUpAt  DateTime?
   lastContactedAt DateTime?
   convertedAt     DateTime?
   lostReason      String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  enrollment Enrollment?
-  activities Activity[]
-  consents   ConsentRecord[]
+  enrollment       Enrollment?
+  activities       Activity[]
+  consents         ConsentRecord[]
+  vehicleInquiries VehicleInquiry[]
 
   @@index([status])
   @@index([nextFollowUpAt])
@@ -190,8 +203,8 @@ model Activity {
   id        String       @id @default(uuid())
   leadId    String
   lead      Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User         @relation(fields: [userId], references: [id])
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   type      ActivityType
   content   String
   metadata  Json?
@@ -209,6 +222,7 @@ enum ActivityType {
   STATUS_CHANGE
   FOLLOW_UP_SET
   ENROLLMENT
+  VEHICLE_INQUIRY
 }
 
 // Shared identity kept separate from any single business line. Leads,
@@ -225,9 +239,14 @@ model Customer {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  contacts CustomerContact[]
-  leads    Lead[]
-  consents ConsentRecord[]
+  contacts        CustomerContact[]
+  leads           Lead[]
+  consents        ConsentRecord[]
+  vehicleListings VehicleListing[]
+  buyerDeals      BrokerageDeal[] @relation("dealBuyer")
+  sellerDeals     BrokerageDeal[] @relation("dealSeller")
+  workshopRequests WorkshopRequest[]
+  partsRequests   PartsRequest[]
 
   @@index([phone])
   @@index([email])
@@ -239,6 +258,383 @@ enum ContactType {
   EMAIL
   WHATSAPP
   OTHER
+}
+
+enum VehicleListingStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  SOLD
+  ARCHIVED
+}
+
+enum OwnerAuthorizationMethod {
+  SIGNED_DOCUMENT
+  RECORDED_CALL
+  VERIFIED_MESSAGE
+  IN_PERSON
+}
+
+model VehicleListing {
+  id                       String                   @id @default(uuid())
+  ownerCustomerId          String
+  owner                    Customer                 @relation(fields: [ownerCustomerId], references: [id], onDelete: Restrict)
+  assignedToId             String?
+  assignedTo               User?                    @relation("vehicleListingAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  reviewedById             String?
+  reviewedBy               User?                    @relation("vehicleListingReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  make                     String
+  model                    String
+  year                     Int
+  mileage                  Int?
+  transmission             String?
+  fuelType                 String?
+  vin                      String?
+  city                     String
+  description              String?
+  askingPrice              Decimal                  @db.Decimal(12, 2)
+  currency                 String                   @default("SYP")
+  isPriceNegotiable        Boolean                  @default(false)
+  conditionVerifiedAt      DateTime?
+  inspectionReference      String?
+  mediaPaths               String[]                 @default([])
+  ownerAuthorizationMethod OwnerAuthorizationMethod
+  ownerAuthorizationNote   String
+  ownerAuthorizationPath   String?
+  ownerAuthorizedAt        DateTime                 @default(now())
+  status                   VehicleListingStatus     @default(DRAFT)
+  moderationNote           String?
+  reviewedAt               DateTime?
+  publishedAt              DateTime?
+  soldAt                   DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  inquiries VehicleInquiry[]
+  brokerageDeals BrokerageDeal[]
+
+  @@index([status, publishedAt])
+  @@index([ownerCustomerId])
+  @@index([assignedToId])
+  @@index([make, model, year])
+}
+
+model VehicleInquiry {
+  id        String         @id @default(uuid())
+  listingId String
+  listing   VehicleListing @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  leadId    String         @unique
+  lead      Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@index([listingId, createdAt])
+}
+
+enum BrokerageDealStatus {
+  NEW_INQUIRY
+  CONTACTED
+  QUALIFIED
+  VIEWING_SCHEDULED
+  NEGOTIATION
+  AGREEMENT_PENDING
+  COMPLETED
+  LOST
+  CANCELLED
+}
+
+enum ViewingStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum CommissionPayer {
+  BUYER
+  SELLER
+  OTHER
+}
+
+enum CommissionCalculationType {
+  FIXED
+  PERCENTAGE
+}
+
+model BrokerageDeal {
+  id                    String              @id @default(uuid())
+  listingId             String
+  listing               VehicleListing      @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  buyerCustomerId       String
+  buyer                 Customer            @relation("dealBuyer", fields: [buyerCustomerId], references: [id], onDelete: Restrict)
+  sellerCustomerId      String
+  seller                Customer            @relation("dealSeller", fields: [sellerCustomerId], references: [id], onDelete: Restrict)
+  createdById           String
+  createdBy             User                @relation("brokerageDealCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  status                BrokerageDealStatus @default(NEW_INQUIRY)
+  expectedAmount        Decimal?             @db.Decimal(12, 2)
+  finalAmount           Decimal?             @db.Decimal(12, 2)
+  currency              String               @default("SYP")
+  outcomeNote           String?
+  completedAt           DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  history       BrokerageDealStageHistory[]
+  viewings      VehicleViewing[]
+  commissions   CommissionAgreement[]
+
+  @@index([listingId, status])
+  @@index([buyerCustomerId])
+  @@index([sellerCustomerId])
+  @@index([createdById, status])
+  @@index([createdAt])
+}
+
+model BrokerageDealStageHistory {
+  id        String              @id @default(uuid())
+  dealId    String
+  deal      BrokerageDeal       @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  from      BrokerageDealStatus?
+  to        BrokerageDealStatus
+  reason    String?
+  actorId   String?
+  actor     User?               @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime            @default(now())
+
+  @@index([dealId, createdAt])
+}
+
+model VehicleViewing {
+  id          String        @id @default(uuid())
+  dealId      String
+  deal        BrokerageDeal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime
+  status      ViewingStatus @default(REQUESTED)
+  location    String?
+  notes       String?
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([dealId, scheduledAt])
+}
+
+model CommissionAgreement {
+  id               String                    @id @default(uuid())
+  dealId           String
+  deal             BrokerageDeal             @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  payer            CommissionPayer
+  otherPayerName   String?
+  calculationType  CommissionCalculationType
+  calculationBasis String
+  basisAmount      Decimal                   @db.Decimal(12, 2)
+  rateOrAmount     Decimal                   @db.Decimal(12, 2)
+  amountDue        Decimal                   @db.Decimal(12, 2)
+  currency         String                    @default("SYP")
+  agreementReference String
+  notes            String?
+  approvedById     String
+  approvedBy       User                      @relation("commissionApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  agreedAt         DateTime                  @default(now())
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  payments CommissionPayment[]
+
+  @@unique([dealId, payer])
+  @@index([approvedById, agreedAt])
+}
+
+model CommissionPayment {
+  id            String              @id @default(uuid())
+  agreementId   String
+  agreement     CommissionAgreement @relation(fields: [agreementId], references: [id], onDelete: Restrict)
+  amount        Decimal             @db.Decimal(12, 2)
+  currency      String
+  method        PaymentMethod       @default(CASH)
+  reference     String?
+  note          String?
+  paidAt        DateTime            @default(now())
+  recordedById  String
+  recordedBy    User                @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime            @default(now())
+
+  @@index([agreementId, paidAt])
+}
+
+enum WorkshopRequestStatus {
+  NEW
+  REVIEWING
+  CONFIRMED
+  CANCELLED
+  RECEIVED
+  COMPLETED
+}
+
+enum WorkOrderStatus {
+  RECEIVED
+  DIAGNOSING
+  ESTIMATE_PENDING
+  AWAITING_CUSTOMER_APPROVAL
+  IN_PROGRESS
+  QUALITY_CHECK
+  DELIVERED
+  CANCELLED
+}
+
+model WorkshopRequest {
+  id               String                @id @default(uuid())
+  customerId       String
+  customer         Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicleMake      String
+  vehicleModel     String
+  vehicleYear      Int?
+  requestedService String
+  reportedSymptoms String?
+  preferredAt     DateTime?
+  status           WorkshopRequestStatus @default(NEW)
+  internalNotes    String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  workOrder WorkshopWorkOrder?
+
+  @@index([status, createdAt])
+  @@index([customerId, createdAt])
+}
+
+model WorkshopWorkOrder {
+  id              String         @id @default(uuid())
+  requestId       String         @unique
+  request         WorkshopRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  technicianId    String?
+  technician      User?          @relation("workOrderTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User           @relation("workOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  status          WorkOrderStatus @default(RECEIVED)
+  confirmedDiagnosis String?
+  estimateAmount  Decimal?       @db.Decimal(12, 2)
+  finalAmount     Decimal?       @db.Decimal(12, 2)
+  currency        String         @default("SYP")
+  customerApprovedAt DateTime?
+  customerApprovalReference String?
+  completedAt     DateTime?
+  deliveredAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  inspections WorkshopInspectionRecord[]
+  payments    WorkshopPayment[]
+
+  @@index([status, createdAt])
+  @@index([technicianId, status])
+}
+
+model WorkshopInspectionRecord {
+  id               String           @id @default(uuid())
+  workOrderId      String
+  workOrder        WorkshopWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  technicianId     String
+  technician       User             @relation(fields: [technicianId], references: [id], onDelete: Restrict)
+  checklist        Json
+  confirmedFindings String
+  recommendations String?
+  inspectedAt     DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+
+  @@index([workOrderId, inspectedAt])
+}
+
+model WorkshopPayment {
+  id           String           @id @default(uuid())
+  workOrderId  String
+  workOrder    WorkshopWorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Restrict)
+  amount       Decimal          @db.Decimal(12, 2)
+  currency     String
+  method       PaymentMethod    @default(CASH)
+  reference    String?
+  paidAt       DateTime         @default(now())
+  recordedById String
+  recordedBy   User             @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime         @default(now())
+
+  @@index([workOrderId, paidAt])
+}
+
+enum PartsRequestStatus {
+  NEW
+  REVIEWING
+  SOURCING
+  QUOTED
+  AWAITING_CUSTOMER
+  APPROVED
+  ORDERED
+  FULFILLED
+  UNAVAILABLE
+  CANCELLED
+}
+
+enum PartsAvailability {
+  UNCONFIRMED
+  AVAILABLE
+  BACKORDERED
+  UNAVAILABLE
+}
+
+enum QuoteDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PartsRequest {
+  id              String            @id @default(uuid())
+  customerId      String
+  customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicleMake     String
+  vehicleModel    String
+  vehicleYear     Int?
+  partName        String
+  partNumber      String?
+  description     String?
+  quantity        Int               @default(1)
+  status          PartsRequestStatus @default(NEW)
+  customerNotes   String?
+  internalNotes   String?
+  fulfilledAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  quotations PartsQuotation[]
+
+  @@index([status, createdAt])
+  @@index([customerId, createdAt])
+}
+
+model PartsQuotation {
+  id                  String            @id @default(uuid())
+  requestId           String
+  request             PartsRequest      @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  supplierName        String
+  supplierReference   String?
+  quotedPrice         Decimal           @db.Decimal(12, 2)
+  currency            String            @default("SYP")
+  availability        PartsAvailability @default(UNCONFIRMED)
+  estimatedLeadTime   String?
+  customerDecision    QuoteDecision     @default(PENDING)
+  decisionAt          DateTime?
+  validUntil          DateTime?
+  createdById         String
+  createdBy           User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  customerDecisionReference String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([requestId, createdAt])
+  @@index([customerDecision])
 }
 
 model CustomerContact {
@@ -360,32 +756,32 @@ enum DeliveryMode {
 }
 
 model Course {
-  id            String       @id @default(uuid())
-  slug          String       @unique
+  id            String          @id @default(uuid())
+  slug          String          @unique
   title         String
   shortTitle    String
   courseType    CourseType
   categoryId    String?
   category      CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   instructorId  String?
-  instructor    Instructor?  @relation(fields: [instructorId], references: [id], onDelete: SetNull)
+  instructor    Instructor?     @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   tagline       String
   summary       String
   description   String[]
   focus         String[]
-  prerequisites String[]     @default([])
+  prerequisites String[]        @default([])
   format        String
   note          String
   image         String
   imageAlt      String
-  deliveryMode  DeliveryMode @default(ONSITE)
-  price         Decimal?     @db.Decimal(12, 2)
-  currency      String       @default("SYP")
-  featured      Boolean      @default(false)
-  sortOrder     Int          @default(0)
-  status        CourseStatus @default(DRAFT)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  deliveryMode  DeliveryMode    @default(ONSITE)
+  price         Decimal?        @db.Decimal(12, 2)
+  currency      String          @default("SYP")
+  featured      Boolean         @default(false)
+  sortOrder     Int             @default(0)
+  status        CourseStatus    @default(DRAFT)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   batches     CourseBatch[]
   enrollments Enrollment[]

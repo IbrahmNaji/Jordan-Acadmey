@@ -10,10 +10,12 @@
     "smoke": "npm run build && node scripts/smoke.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "ts-node prisma/seed.ts",
     "db:seed:courses": "ts-node prisma/seed-courses.ts",
-    "db:seed:courses:apply": "ts-node prisma/seed-courses.ts --apply"
+    "db:seed:courses:apply": "ts-node prisma/seed-courses.ts --apply",
+    "db:reset-admin-password": "ts-node prisma/reset-admin-password.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,32 +1,20 @@
-# React + TypeScript + Vite
+# واجهة الويب
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## الإعداد
 
-Currently, two official plugins are available:
+انسخ `.env.example` إلى `.env`، ثم اضبط:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `VITE_API_URL`: عنوان API متضمناً `/api`.
+- `VITE_SITE_URL`: أصل الموقع العام. استخدم عنوان HTTPS الفعلي في الإنتاج. عند تركه فارغاً لا تُنشأ خريطة موقع ولا عناوين canonical، وتظهر ملاحظة أثناء البناء.
+- `VITE_ACADEMY_PHONE` و`VITE_ACADEMY_WHATSAPP` و`VITE_ACADEMY_EMAIL` و`VITE_ACADEMY_INSTAGRAM`: بيانات التواصل المركزية. لا تضع أسراراً هنا؛ قيم Vite العامة تُضمّن في ملفات الواجهة.
+- `VITE_CURRENCY_LABEL`: تسمية العملة الظاهرة في الواجهة.
 
-## React Compiler
+ثبّت الحزم بـ`npm ci` ثم شغّل `npm run dev`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## البناء والفحوصات
 
-## Expanding the Oxlint configuration
+- `npm run build` يشغّل TypeScript وVite ثم ينشئ `dist/robots.txt`. إذا كان `VITE_SITE_URL` صالحاً ويستخدم HTTPS، ينشئ أيضاً `dist/sitemap.xml` بالمسارات العامة الثابتة.
+- `npm run lint` يفحص `src` فقط.
+- `npm run preview` يعرض نسخة البناء محلياً.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+الموقع تطبيق SPA؛ تحديث العنوان وبيانات Open Graph وcanonical يجري في المتصفح. هذا لا يضيف SSR أو prerendering. خريطة الموقع الحالية لا تتضمن صفحات الدورات الفردية المنشأة ديناميكياً.

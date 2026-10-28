@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
   Clock,
+  Camera,
   Mail,
   MapPin,
   MessageCircle,
@@ -104,6 +105,30 @@ export default function ContactPage() {
                     </a>
                   )}
 
+                  {contact.instagram && (
+                    <a
+                      href={contact.instagram}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-flame-500/60"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-ink-950">
+                        <Camera size={16} aria-hidden="true" />
+                      </span>
+                      <span>
+                        <span className="block text-[11px] text-steel-500">
+                          انستغرام
+                        </span>
+                        <span
+                          dir="ltr"
+                          className="mt-0.5 block text-sm font-semibold"
+                        >
+                          @academicjordan
+                        </span>
+                      </span>
+                    </a>
+                  )}
+
                   {contact.email && (
                     <a
                       href={`mailto:${contact.email}`}
@@ -126,7 +151,12 @@ export default function ContactPage() {
                     </a>
                   )}
 
-                  <div className="flex items-center gap-3 border border-white/10 p-4">
+                  <a
+                    href={site.mapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-3 border border-white/10 p-4 transition-colors hover:border-flame-500/60"
+                  >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-white/15 text-flame-400">
                       <MapPin size={16} aria-hidden="true" />
                     </span>
@@ -137,8 +167,11 @@ export default function ContactPage() {
                       <span className="mt-0.5 block text-sm font-semibold">
                         {site.location}
                       </span>
+                      <span className="mt-1 block text-[11px] text-flame-400">
+                        افتح الموقع على الخريطة
+                      </span>
                     </span>
-                  </div>
+                  </a>
                 </div>
 
                 {!hasDirectContact && (

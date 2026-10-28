@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
+import { prisma } from './config/prisma';
 import { errorHandler } from './middleware/errorHandler';
 
 import authRoutes from './modules/auth/auth.routes';
@@ -17,6 +18,10 @@ import publicRoutes from './modules/public/public.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
 import auditRoutes from './modules/audit/audit.routes';
 import academyRoutes from './modules/academy';
+import vehiclesRoutes from './modules/vehicles/vehicles.routes';
+import brokerageRoutes from './modules/brokerage/brokerage.routes';
+import workshopRoutes from './modules/workshop/workshop.routes';
+import partsRoutes from './modules/parts/parts.routes';
 
 export const app = express();
 
@@ -27,8 +32,13 @@ app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', time: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'unavailable' });
+  }
 });
 
 app.use(
@@ -55,6 +65,10 @@ app.use('/api/public', publicRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/audit-logs', auditRoutes);
 app.use('/api/academy', academyRoutes);
+app.use('/api/vehicles', vehiclesRoutes);
+app.use('/api/brokerage', brokerageRoutes);
+app.use('/api/workshop', workshopRoutes);
+app.use('/api/parts', partsRoutes);
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'NOT_FOUND' });

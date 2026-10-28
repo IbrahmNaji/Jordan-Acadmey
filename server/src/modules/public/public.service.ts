@@ -32,6 +32,12 @@ const PUBLIC_COURSE_SELECT = {
   featured: true,
 } satisfies Prisma.CourseSelect;
 
+const PUBLIC_INSTRUCTOR_COURSES = {
+  where: { status: 'PUBLISHED' as const },
+  select: { slug: true, title: true },
+  orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+};
+
 interface InquiryInput {
   fullName: string;
   phone: string;
@@ -55,7 +61,19 @@ export class PublicService {
   async getCourse(slug: string) {
     const course = await prisma.course.findFirst({
       where: { slug, status: 'PUBLISHED' },
-      select: PUBLIC_COURSE_SELECT,
+      select: {
+        ...PUBLIC_COURSE_SELECT,
+        instructor: {
+          select: {
+            id: true,
+            fullName: true,
+            specialty: true,
+            bio: true,
+            isActive: true,
+            courses: PUBLIC_INSTRUCTOR_COURSES,
+          },
+        },
+      },
     });
     if (!course) return null;
     const related = await prisma.course.findMany({
@@ -64,7 +82,36 @@ export class PublicService {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       take: 3,
     });
-    return { ...course, related };
+    const { instructor, ...publicCourse } = course;
+    return {
+      ...publicCourse,
+      instructor: instructor?.isActive
+        ? {
+            id: instructor.id,
+            fullName: instructor.fullName,
+            specialty: instructor.specialty,
+            bio: instructor.bio,
+            courses: instructor.courses,
+          }
+        : null,
+      related,
+    };
+  }
+
+  async listInstructors() {
+    return prisma.instructor.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        specialty: true,
+        bio: true,
+        courses: PUBLIC_INSTRUCTOR_COURSES,
+      },
+      orderBy: { fullName: 'asc' },
+    });
   }
 
   async createInquiry(input: InquiryInput, context: { ip?: string | null } = {}) {

@@ -16,7 +16,16 @@ export interface PublicCourse {
   featured: boolean;
 }
 
+export interface PublicInstructor {
+  id: string;
+  fullName: string;
+  specialty: string | null;
+  bio: string | null;
+  courses: Array<{ slug: string; title: string }>;
+}
+
 export interface PublicCourseDetail extends PublicCourse {
+  instructor: PublicInstructor | null;
   related: PublicCourse[];
 }
 
@@ -35,4 +44,5 @@ export interface InquiryPayload {
 
 export interface InquiryResponse {
   ok: true;
+  duplicate: boolean;
 }

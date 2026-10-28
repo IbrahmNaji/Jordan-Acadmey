@@ -36,7 +36,8 @@ export type ActivityType =
   | 'NOTE'
   | 'STATUS_CHANGE'
   | 'FOLLOW_UP_SET'
-  | 'ENROLLMENT';
+  | 'ENROLLMENT'
+  | 'VEHICLE_INQUIRY';
 
 /** Prisma Decimal يُعاد من الـ API كنص عبر JSON */
 export type DecimalLike = string | number;

@@ -1,6 +1,8 @@
 import { randomBytes } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+import { passwordSchema } from '../src/utils/validation';
 import { publicCourses } from '../src/content/courses';
 
 const prisma = new PrismaClient();
@@ -58,8 +60,24 @@ async function ensureUser(input: {
 async function main() {
   console.log('🌱 Seeding base data...');
 
+  const configuredAdminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  if (isProduction) {
+    if (!configuredAdminEmail) {
+      throw new Error('Set SEED_ADMIN_EMAIL before seeding in production.');
+    }
+    if (!z.string().email().safeParse(configuredAdminEmail).success) {
+      throw new Error('SEED_ADMIN_EMAIL must be a valid email address.');
+    }
+    const passwordResult = passwordSchema.safeParse(process.env.SEED_ADMIN_PASSWORD);
+    if (!passwordResult.success) {
+      throw new Error(
+        'SEED_ADMIN_PASSWORD must be at least 10 characters and contain a letter and a digit.',
+      );
+    }
+  }
+
   const adminEmail =
-    process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() ||
+    configuredAdminEmail ||
     'admin@academy.local';
   await ensureUser({
     email: adminEmail,

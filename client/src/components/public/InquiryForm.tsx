@@ -125,6 +125,7 @@ export default function InquiryForm({
   const coursesQuery = usePublicCourses();
   const mutation = useSubmitInquiry();
   const [submitted, setSubmitted] = useState(false);
+  const [wasDuplicate, setWasDuplicate] = useState(false);
 
   const {
     register,
@@ -169,13 +170,15 @@ export default function InquiryForm({
       notes: values.notes?.trim() || undefined,
       consent: true,
     };
-    await mutation.mutateAsync(payload);
+    const result = await mutation.mutateAsync(payload);
+    setWasDuplicate(result.duplicate);
     setSubmitted(true);
   });
 
   const startNewInquiry = () => {
     mutation.reset();
     setSubmitted(false);
+    setWasDuplicate(false);
     reset({
       fullName: '',
       phone: '',
@@ -204,12 +207,18 @@ export default function InquiryForm({
           <CheckCircle2 size={28} aria-hidden="true" />
         </span>
         <h2 className="mt-5 font-display text-2xl font-extrabold text-ink-900">
-          وصل استفسارك
+          {wasDuplicate ? 'لدينا استفسار حديث بهذا الرقم' : 'وصل استفسارك'}
         </h2>
         <p className="mt-3 max-w-md text-sm leading-8 text-steel-600">
-          سُجّل استفسارك بنجاح، وسيتواصل معك فريق الأكاديمية عبر «
-          {methodLabel}» لمناقشة التفاصيل. إرسال النموذج لا يُعد تسجيلاً
-          نهائياً.
+          {wasDuplicate ? (
+            'وجدنا استفساراً حديثاً مرتبطاً برقم الهاتف الذي أدخلته، لذلك لم ننشئ نسخة مكررة. إذا كان لديك طلب مختلف، أضف تفاصيله عند التواصل معنا.'
+          ) : (
+            <>
+              سُجّل استفسارك بنجاح، وسيتواصل معك فريق الأكاديمية عبر «
+              {methodLabel}» لمناقشة التفاصيل. إرسال النموذج لا يُعد تسجيلاً
+              نهائياً.
+            </>
+          )}
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <button type="button" onClick={startNewInquiry} className="btn-flame">

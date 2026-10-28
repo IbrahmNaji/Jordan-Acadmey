@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
+  BadgeCheck,
   Check,
   Info,
+  SearchCheck,
   ShieldCheck,
   Wrench,
 } from 'lucide-react';
@@ -12,6 +14,25 @@ import SectionHeading from '../../components/public/SectionHeading';
 import Reveal from '../../components/public/Reveal';
 import GalleryLightbox from '../../components/public/GalleryLightbox';
 import { practicalPoints, site } from '../../content/site';
+import BusinessRequestForm from '../../components/public/BusinessRequestForm';
+
+const workshopServices = [
+  {
+    icon: ShieldCheck,
+    title: 'الكفالات',
+    text: 'استفسر عن الكفالات المتاحة للخدمة أو القطعة، ونوضح نطاقها وشروطها قبل اعتمادها.',
+  },
+  {
+    icon: BadgeCheck,
+    title: 'خدمات ما بعد البيع',
+    text: 'متابعة استفساراتك وطلبات الدعم بعد إتمام الخدمة أو شراء القطعة، وفق ما تم الاتفاق عليه.',
+  },
+  {
+    icon: SearchCheck,
+    title: 'فحص المركبات',
+    text: 'استقبال طلبات فحص المركبات وتوضيح نطاق الفحص وموعده قبل تأكيد الطلب.',
+  },
+];
 
 const approach = [
   {
@@ -74,6 +95,35 @@ export default function WorkshopPage() {
           </Link>
         </div>
       </PageHero>
+
+      <section
+        className="border-b border-ink-900/10 bg-white py-14 sm:py-18"
+        aria-labelledby="workshop-services-title"
+      >
+        <div className="shell">
+          <SectionHeading
+            eyebrow="خدمات نقدمها"
+            title={<span id="workshop-services-title">خدمات الورشة</span>}
+            description="إلى جانب بيئة التدريب، يمكنك التواصل معنا لطلب خدمات الورشة والاستفسار عن تفاصيلها وشروطها."
+          />
+          <div className="mt-9 grid gap-4 md:grid-cols-3">
+            {workshopServices.map(({ icon: Icon, title, text }) => (
+              <article
+                key={title}
+                className="h-full border border-ink-900/10 bg-paper p-5 sm:p-6"
+              >
+                <span className="flex h-11 w-11 items-center justify-center bg-flame-50 text-flame-700">
+                  <Icon size={20} aria-hidden="true" />
+                </span>
+                <h3 className="mt-4 font-display text-base font-bold text-ink-900">
+                  {title}
+                </h3>
+                <p className="mt-2 text-sm leading-7 text-steel-600">{text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="bg-paper py-16 lg:py-24">
         <div className="shell">
@@ -272,6 +322,7 @@ export default function WorkshopPage() {
           </Link>
         </div>
       </section>
+      <BusinessRequestForm kind="workshop" />
     </>
   );
 }

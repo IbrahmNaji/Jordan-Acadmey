@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
+  Camera,
   MapPin,
   Mail,
   MessageCircle,
@@ -36,10 +37,15 @@ export default function SiteFooter() {
             <p className="mt-6 max-w-md text-sm leading-8 text-steel-400">
               {site.description}
             </p>
-            <p className="mt-5 inline-flex items-center gap-2 text-xs text-steel-400">
+            <a
+              href={site.mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-2 text-xs text-steel-400 transition-colors hover:text-paper"
+            >
               <MapPin size={14} className="text-flame-500" aria-hidden="true" />
               {site.location}
-            </p>
+            </a>
           </div>
 
           <div className="lg:col-span-2">
@@ -119,6 +125,22 @@ export default function SiteFooter() {
                 >
                   <Mail size={14} className="text-flame-500" aria-hidden="true" />
                   <span dir="ltr">{contact.email}</span>
+                </a>
+              )}
+              {contact.instagram && (
+                <a
+                  href={contact.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-[13px] text-steel-300 transition-colors hover:text-flame-400"
+                >
+                  <Camera
+                    size={14}
+                    className="text-flame-500"
+                    aria-hidden="true"
+                  />
+                  <span>انستغرام</span>
+                  <span dir="ltr">@academicjordan</span>
                 </a>
               )}
               {!hasDirectContact && (

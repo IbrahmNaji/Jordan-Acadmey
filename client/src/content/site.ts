@@ -1,20 +1,27 @@
 const env = import.meta.env;
 
 export const site = {
+  url: (env.VITE_SITE_URL ?? '').trim(),
   name: 'الأكاديمية الأردنية',
-  descriptor: 'أكاديمية تدريب السيارات',
-  tagline: 'مهارة تُبنى داخل الورشة.',
+  descriptor: 'خدمات السيارات المتكاملة',
+  tagline: 'التدريب، المركبات، الورشة، وقطع الغيار.',
   description:
-    'مسارات تدريبية عملية في ميكانيك السيارات وكهربائها وأنظمة التشخيص والهايبرد، تبدأ من الأساسيات وتصل إلى الفحص والتشخيص.',
+    'منصة متكاملة للأكاديمية وبيع وشراء المركبات وخدمات الورشة وقطع الغيار في دمشق، سوريا.',
   location: 'دمشق، سوريا',
+  mapUrl: 'https://maps.app.goo.gl/jDhUP8HbYkFkGgHY6',
   imagesNotice:
     'الصور المعروضة توضيحية لبيئة تدريب سيارات، وليست صوراً للمنشأة الفعلية.',
 };
 
+const DEFAULT_PHONE = '+963 985 387 388';
+const DEFAULT_WHATSAPP = '963985387388';
+const DEFAULT_INSTAGRAM = 'https://www.instagram.com/academicjordan/';
+
 export const contact = {
-  phone: (env.VITE_ACADEMY_PHONE ?? '').trim(),
-  whatsapp: (env.VITE_ACADEMY_WHATSAPP ?? '').trim(),
+  phone: (env.VITE_ACADEMY_PHONE || '').trim() || DEFAULT_PHONE,
+  whatsapp: (env.VITE_ACADEMY_WHATSAPP || '').trim() || DEFAULT_WHATSAPP,
   email: (env.VITE_ACADEMY_EMAIL ?? '').trim(),
+  instagram: (env.VITE_ACADEMY_INSTAGRAM || '').trim() || DEFAULT_INSTAGRAM,
   location: site.location,
 };
 
@@ -27,11 +34,11 @@ export function toWhatsAppLink(rawNumber: string, message?: string) {
 
 export const mainNavigation = [
   { to: '/', label: 'الرئيسية' },
-  { to: '/courses', label: 'الدورات' },
+  { to: '/courses', label: 'الأكاديمية' },
+  { to: '/courses#instructors', label: 'مدرّبونا' },
+  { to: '/marketplace', label: 'بيع وشراء المركبات' },
   { to: '/workshop', label: 'الورشة' },
-  { to: '/about', label: 'عن الأكاديمية' },
-  { to: '/faq', label: 'الأسئلة الشائعة' },
-  { to: '/contact', label: 'تواصل معنا' },
+  { to: '/spare-parts', label: 'قطع الغيار' },
 ];
 
 export const tracks = [

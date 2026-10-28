@@ -17,6 +17,7 @@ import Reveal from '../../components/public/Reveal';
 import { Spinner } from '../../components/public/StateBlocks';
 import { usePublicCourse } from '../../hooks/usePublic';
 import { site } from '../../content/site';
+import InstructorProfileCard from '../../components/public/InstructorProfileCard';
 
 export default function CourseDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -208,6 +209,30 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </section>
+
+      {course.instructor && (
+        <section
+          className="border-t border-ink-900/10 bg-white py-12 lg:py-16"
+          aria-labelledby="course-instructor-title"
+        >
+          <div className="shell">
+            <p className="eyebrow">فريق التدريب</p>
+            <h2
+              id="course-instructor-title"
+              className="mb-6 mt-3 font-display text-2xl font-extrabold text-ink-900 sm:text-3xl"
+            >
+              مدرّس الدورة
+            </h2>
+            <div className="max-w-3xl">
+              <InstructorProfileCard
+                instructor={course.instructor}
+                compact
+                currentCourseSlug={course.slug}
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="bg-paper py-16 lg:py-20">
         <div className="shell grid gap-10 lg:grid-cols-12 lg:gap-12">

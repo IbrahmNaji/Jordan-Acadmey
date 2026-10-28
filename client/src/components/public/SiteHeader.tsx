@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
+  Camera,
   Mail,
   MapPin,
   Menu,
@@ -54,10 +55,16 @@ export default function SiteHeader() {
       <div className="hidden border-b border-white/10 bg-ink-950 md:block">
         <div className="shell flex h-9 items-center justify-between text-[11px] text-steel-400">
           <div className="flex items-center gap-5">
-            <span className="inline-flex items-center gap-1.5">
+            <a
+              href={site.mapUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`افتح موقعنا على الخريطة: ${site.location}`}
+              className="inline-flex items-center gap-1.5 transition-colors hover:text-paper"
+            >
               <MapPin size={12} aria-hidden="true" className="text-flame-500" />
               {site.location}
-            </span>
+            </a>
             {contact.phone && (
               <a
                 href={`tel:${contact.phone.replace(/\s/g, '')}`}
@@ -69,12 +76,28 @@ export default function SiteHeader() {
                 </span>
               </a>
             )}
+            {contact.instagram && (
+              <a
+                href={contact.instagram}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="إنستغرام الأكاديمية"
+                className="inline-flex items-center gap-1.5 transition-colors hover:text-paper"
+              >
+                <Camera
+                  size={12}
+                  aria-hidden="true"
+                  className="text-flame-500"
+                />
+                <span dir="ltr">@academicjordan</span>
+              </a>
+            )}
           </div>
           <Link
             to="/contact"
             className="inline-flex items-center gap-1.5 transition-colors hover:text-paper"
           >
-            استفسارات الدورات والدفعات
+            استفسارات عن خدماتنا
             <ArrowLeft size={12} aria-hidden="true" />
           </Link>
         </div>
@@ -125,7 +148,7 @@ export default function SiteHeader() {
               to="/contact"
               className="hidden min-h-[42px] items-center gap-2 border border-flame-500 bg-flame-500 px-5 font-display text-xs font-bold text-ink-950 transition-colors hover:bg-transparent hover:text-flame-400 sm:inline-flex"
             >
-              اطلب استشارة
+              تواصل معنا
               <ArrowLeft size={14} aria-hidden="true" />
             </Link>
             <button
@@ -202,10 +225,15 @@ export default function SiteHeader() {
             </nav>
 
             <div className="mt-10 space-y-3 text-sm text-steel-300">
-              <p className="flex items-center gap-2">
+              <a
+                href={site.mapUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 transition-colors hover:text-paper"
+              >
                 <MapPin size={15} className="text-flame-500" aria-hidden="true" />
                 {site.location}
-              </p>
+              </a>
               {contact.phone && (
                 <a
                   href={`tel:${contact.phone.replace(/\s/g, '')}`}
@@ -242,6 +270,24 @@ export default function SiteHeader() {
                     aria-hidden="true"
                   />
                   واتساب
+                </a>
+              )}
+              {contact.instagram && (
+                <a
+                  href={contact.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 transition-colors hover:text-paper"
+                >
+                  <Camera
+                    size={15}
+                    className="text-flame-500"
+                    aria-hidden="true"
+                  />
+                  <span>انستغرام</span>
+                  <span dir="ltr" className="tabular-nums">
+                    @academicjordan
+                  </span>
                 </a>
               )}
               {!contact.phone && !contact.email && !contact.whatsapp && (

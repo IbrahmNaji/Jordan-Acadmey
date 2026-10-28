@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchPublicCourse,
   fetchPublicCourses,
+  fetchPublicInstructors,
   submitInquiry,
 } from '../api/public';
 import type { InquiryPayload } from '../types/public';
@@ -15,6 +16,14 @@ export function usePublicCourses() {
   return useQuery({
     queryKey: publicKeys.courses,
     queryFn: fetchPublicCourses,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function usePublicInstructors() {
+  return useQuery({
+    queryKey: ['public', 'instructors'],
+    queryFn: fetchPublicInstructors,
     staleTime: 5 * 60_000,
   });
 }

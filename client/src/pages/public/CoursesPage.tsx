@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, X } from 'lucide-react';
 import clsx from 'clsx';
 import PageMeta from '../../components/public/PageMeta';
@@ -11,7 +11,8 @@ import {
   EmptyState,
   ErrorState,
 } from '../../components/public/StateBlocks';
-import { usePublicCourses } from '../../hooks/usePublic';
+import InstructorProfileCard from '../../components/public/InstructorProfileCard';
+import { usePublicCourses, usePublicInstructors } from '../../hooks/usePublic';
 import { site } from '../../content/site';
 
 const categories = [
@@ -24,6 +25,8 @@ const categories = [
 
 export default function CoursesPage() {
   const coursesQuery = usePublicCourses();
+  const instructorsQuery = usePublicInstructors();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const category = searchParams.get('category') ?? 'ALL';
   const queryParam = searchParams.get('q') ?? '';
@@ -32,6 +35,11 @@ export default function CoursesPage() {
   useEffect(() => {
     setSearch(queryParam);
   }, [queryParam]);
+
+  useEffect(() => {
+    if (location.hash !== '#instructors') return;
+    document.getElementById('instructors')?.scrollIntoView({ behavior: 'smooth' });
+  }, [location.hash]);
 
   const updateParams = (next: URLSearchParams) => {
     setSearchParams(next, { replace: true });
@@ -102,6 +110,9 @@ export default function CoursesPage() {
           </Link>
           <a href="#catalog" className="btn-outline-light">
             تصفح المسارات
+          </a>
+          <a href="#instructors" className="btn-outline-light">
+            تعرّف على مدرّبينا
           </a>
         </div>
       </PageHero>
@@ -249,6 +260,59 @@ export default function CoursesPage() {
           <p className="mt-6 text-[11px] leading-6 text-steel-600">
             {site.imagesNotice}
           </p>
+        </div>
+      </section>
+
+      <section
+        id="instructors"
+        className="scroll-mt-28 border-t border-ink-900/10 bg-white py-16 lg:py-20"
+        aria-labelledby="instructors-title"
+        dir="rtl"
+      >
+        <div className="shell">
+          <p className="eyebrow">فريق الأكاديمية</p>
+          <h2
+            id="instructors-title"
+            className="mt-3 font-display text-3xl font-extrabold text-ink-900 sm:text-4xl"
+          >
+            تعرّف على مدرّبينا
+          </h2>
+          <p className="mt-3 max-w-3xl font-display text-base font-semibold leading-8 text-flame-700">
+            خبرة عملية ومعرفة متخصصة لمساعدتك على فهم تقنيات السيارات الحديثة وتطوير مهاراتك المهنية.
+          </p>
+          <div className="mt-4 max-w-3xl space-y-3 text-sm leading-8 text-steel-600">
+            <p>
+              يضم فريقنا التدريبي مهندسين ومتخصصين في مجالات السيارات والأنظمة الكهربائية والهجينة، يعملون على نقل المعرفة والخبرة إلى المتدربين من خلال الشرح النظري والتطبيق العملي وفق طبيعة كل دورة.
+            </p>
+            <p>
+              تعرّف على مدرّبينا، واكتشف تخصصاتهم وخبراتهم والدورات التي يساهمون في تقديمها، لتختار المسار التدريبي الذي يناسب أهدافك المهنية.
+            </p>
+          </div>
+
+          {instructorsQuery.isLoading ? (
+            <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-96 animate-pulse border border-ink-900/10 bg-paper"
+                />
+              ))}
+            </div>
+          ) : instructorsQuery.isError ? (
+            <p role="status" className="mt-8 border border-ink-900/10 bg-paper p-5 text-sm text-steel-600">
+              تعذّر تحميل ملفات المدرّبين حالياً.
+            </p>
+          ) : instructorsQuery.data?.length ? (
+            <div className="mt-9 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {instructorsQuery.data.map((instructor) => (
+                <InstructorProfileCard key={instructor.id} instructor={instructor} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-8 border border-ink-900/10 bg-paper p-5 text-sm leading-7 text-steel-600">
+              لم تُنشر ملفات المدرّبين بعد. ستظهر هنا الملفات التي يراجعها فريق الأكاديمية ويربطها بدورات منشورة.
+            </p>
+          )}
         </div>
       </section>
     </>

@@ -292,4 +292,28 @@ router.get(
   })
 );
 
+router.get('/business-lines', requirePermission('reports:read'), asyncHandler(async (req,res)=>{
+  const query=z.object({from:z.coerce.date().optional(),to:z.coerce.date().optional()}).parse(req.query);
+  const to=query.to??new Date();const from=query.from??new Date(to.getTime()-90*24*60*60*1000);
+  if(from>to)throw new AppError(400,'INVALID_DATE_RANGE');
+  const range={gte:from,lte:to};
+  const [agreed,brokeragePayments,openAgreements,workOrders,deliveredOrders,workshopPayments,partsRequests,quotationCount]=await Promise.all([
+    prisma.commissionAgreement.groupBy({by:['currency'],where:{agreedAt:range},_sum:{amountDue:true}}),
+    prisma.commissionPayment.groupBy({by:['currency'],where:{paidAt:range},_sum:{amount:true}}),
+    prisma.commissionAgreement.findMany({select:{currency:true,amountDue:true,payments:{select:{amount:true}}}}),
+    prisma.workshopWorkOrder.findMany({where:{status:'DELIVERED',deliveredAt:range,finalAmount:{not:null}},select:{currency:true,finalAmount:true,payments:{select:{amount:true}}}}),
+    prisma.workshopWorkOrder.findMany({where:{status:'DELIVERED',deliveredAt:{not:null},finalAmount:{not:null}},select:{currency:true,finalAmount:true,payments:{select:{amount:true}}}}),
+    prisma.workshopPayment.groupBy({by:['currency'],where:{paidAt:range},_sum:{amount:true}}),
+    prisma.partsRequest.groupBy({by:['status'],where:{createdAt:range},_count:{_all:true}}),
+    prisma.partsQuotation.count({where:{createdAt:range}}),
+  ]);
+  const sumsByCurrency=(rows:Array<{currency:string;amount:Prisma.Decimal|null}>)=>{
+    const sums=new Map<string,Prisma.Decimal>();for(const row of rows)sums.set(row.currency,(sums.get(row.currency)??new Prisma.Decimal(0)).plus(row.amount??0));
+    return Array.from(sums,([currency,amount])=>({currency,amount:amount.toFixed(2)}));
+  };
+  const agreementOutstanding=new Map<string,Prisma.Decimal>();for(const agreement of openAgreements){const paid=agreement.payments.reduce((sum,p)=>sum.plus(p.amount),new Prisma.Decimal(0));const balance=Prisma.Decimal.max(new Prisma.Decimal(0),agreement.amountDue.minus(paid));agreementOutstanding.set(agreement.currency,(agreementOutstanding.get(agreement.currency)??new Prisma.Decimal(0)).plus(balance));}
+  const workshopOutstanding=new Map<string,Prisma.Decimal>();const invoices=new Map<string,Prisma.Decimal>();for(const order of workOrders){const invoice=order.finalAmount??new Prisma.Decimal(0);invoices.set(order.currency,(invoices.get(order.currency)??new Prisma.Decimal(0)).plus(invoice));}for(const order of deliveredOrders){const invoice=order.finalAmount??new Prisma.Decimal(0);const paid=order.payments.reduce((sum,p)=>sum.plus(p.amount),new Prisma.Decimal(0));workshopOutstanding.set(order.currency,(workshopOutstanding.get(order.currency)??new Prisma.Decimal(0)).plus(Prisma.Decimal.max(new Prisma.Decimal(0),invoice.minus(paid))));}
+  res.json({range:{from:from.toISOString(),to:to.toISOString()},brokerage:{agreements:sumsByCurrency(agreed.map(row=>({currency:row.currency,amount:row._sum.amountDue}))),collected:sumsByCurrency(brokeragePayments.map(row=>({currency:row.currency,amount:row._sum.amount}))),outstanding:Array.from(agreementOutstanding,([currency,amount])=>({currency,amount:amount.toFixed(2)}))},workshop:{invoices:Array.from(invoices,([currency,amount])=>({currency,amount:amount.toFixed(2)})),collected:sumsByCurrency(workshopPayments.map(row=>({currency:row.currency,amount:row._sum.amount}))),outstanding:Array.from(workshopOutstanding,([currency,amount])=>({currency,amount:amount.toFixed(2)}))},parts:{requests:partsRequests.reduce((sum,row)=>sum+row._count._all,0),quotations:quotationCount,byStatus:partsRequests.map(row=>({status:row.status,count:row._count._all}))}});
+}));
+
 export default router;
