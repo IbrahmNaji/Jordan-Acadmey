@@ -28,7 +28,7 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: CLIENT_URL
-        sync: false
+        value: https://academy-crm-site.onrender.com
       - key: TRUST_PROXY
         value: "true"
       - key: SEED_ADMIN_EMAIL
@@ -53,9 +53,9 @@ services:
       - key: NODE_VERSION
         value: "24.21.0"
       - key: VITE_API_URL
-        sync: false
+        value: https://academy-crm-api.onrender.com/api
       - key: VITE_SITE_URL
-        sync: false
+        value: https://academy-crm-site.onrender.com
 
 databases:
   - name: academy-crm-db
