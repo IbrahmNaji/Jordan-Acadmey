@@ -1,18 +1,14 @@
-# Frankfurt is selected for regional latency; Render regions cannot be changed after creation.
-# Review the paid plans and any cost in Render before creating these resources.
-# This file does not provision or deploy anything until you sync and confirm it.
+
 services:
   - type: web
     name: academy-crm-api
     runtime: node
     rootDir: server
     region: frankfurt
-    plan: free # Free web-service plan; it spins down after inactivity.
-    autoDeployTrigger: 'off'
+    plan: free
+    autoDeployTrigger: "off"
     buildCommand: npm ci --include=dev && npm run db:generate && npm run build
-    preDeployCommand: npm run db:deploy
-    initialDeployHook: npm run db:seed
-    startCommand: npm start
+    startCommand: npm run db:deploy && npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
@@ -32,7 +28,6 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: CLIENT_URL
-        # Enter the website HTTPS origin only, without a trailing slash.
         sync: false
       - key: TRUST_PROXY
         value: "true"
@@ -49,7 +44,7 @@ services:
     rootDir: client
     buildCommand: npm ci --include=dev && npm run build
     staticPublishPath: dist
-    autoDeployTrigger: 'off'
+    autoDeployTrigger: "off"
     routes:
       - type: rewrite
         source: /*
@@ -58,10 +53,8 @@ services:
       - key: NODE_VERSION
         value: "24.21.0"
       - key: VITE_API_URL
-        # Enter the API's public HTTPS URL ending in /api.
         sync: false
       - key: VITE_SITE_URL
-        # Enter the website HTTPS origin only, without a trailing slash.
         sync: false
 
 databases:
@@ -70,5 +63,5 @@ databases:
     user: academy_crm_user
     postgresMajorVersion: "17"
     region: frankfurt
-    plan: free # Free PostgreSQL plan; it expires after 30 days and has no backups.
+    plan: free
     ipAllowList: []
