@@ -22,7 +22,7 @@
     @apply bg-flame-500 text-ink-950;
   }
   :focus-visible {
-    outline: 2px solid #ff6b2c;
+    outline: 2px solid #16852b;
     outline-offset: 3px;
   }
   body.is-locked {

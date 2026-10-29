@@ -1,5 +1,4 @@
 import clsx from 'clsx';
-import { Wrench } from 'lucide-react';
 import { site } from '../../content/site';
 
 export default function BrandMark({
@@ -11,14 +10,12 @@ export default function BrandMark({
 }) {
   return (
     <span className="flex items-center gap-3">
-      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center bg-flame-500">
-        <Wrench size={20} strokeWidth={2.4} className="text-ink-950" />
-        <span
+      <span className="flex h-12 w-[76px] shrink-0 items-center justify-center overflow-hidden bg-white sm:h-14 sm:w-[90px]">
+        <img
+          src="/jordan-tech-academy-logo.png"
+          alt=""
           aria-hidden="true"
-          className={clsx(
-            'absolute -bottom-1 -left-1 h-2 w-2',
-            onDark ? 'bg-ink-950' : 'bg-paper',
-          )}
+          className="h-full w-full object-contain"
         />
       </span>
       <span className="min-w-0">
