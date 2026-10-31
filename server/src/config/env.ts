@@ -14,6 +14,11 @@ const schema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+  ADMIN_RECOVERY_DIAGNOSTICS_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  ADMIN_RECOVERY_DIAGNOSTICS_KEY: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

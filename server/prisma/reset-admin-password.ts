@@ -7,6 +7,35 @@ import { passwordSchema } from '../src/utils/validation';
 const prisma = new PrismaClient();
 const DEFAULT_EMAIL = 'admin@academy.local';
 const ALLOWED_ROLES = new Set(['ADMIN']);
+let currentStage = 'startup';
+
+function reportSafeError(error: unknown): void {
+  const candidate =
+    error && typeof error === 'object'
+      ? (error as { name?: unknown; code?: unknown; errorCode?: unknown })
+      : undefined;
+  const allowedNames = new Set([
+    'Error',
+    'TypeError',
+    'PrismaClientInitializationError',
+    'PrismaClientKnownRequestError',
+    'PrismaClientUnknownRequestError',
+    'PrismaClientValidationError',
+    'PrismaClientRustPanicError',
+  ]);
+  const name =
+    typeof candidate?.name === 'string' && allowedNames.has(candidate.name)
+      ? candidate.name
+      : 'UnknownError';
+  const code = [candidate?.code, candidate?.errorCode].find(
+    (value): value is string => typeof value === 'string' && /^P\d{4}$/.test(value),
+  );
+
+  console.error(
+    `Diagnostic failure at ${currentStage}: ${name}${code ? ` (${code})` : ''}. ` +
+      'Raw error details were suppressed to protect credentials.',
+  );
+}
 
 function readSecret(question: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -65,17 +94,54 @@ async function main() {
   if (args.includes('--help') || args.includes('-h')) {
     console.log(
       'Usage: npm run db:reset-admin-password [-- email]\n' +
-        `Default email: ${DEFAULT_EMAIL}. Only ADMIN accounts are accepted.`,
+        `Default email: ${DEFAULT_EMAIL}. Only ADMIN accounts are accepted.\n` +
+        'Read-only check: npm run db:reset-admin-password -- --diagnose [email]',
     );
     return;
   }
 
-  const email = (args.find((arg) => arg !== '--') ?? DEFAULT_EMAIL)
+  const diagnoseOnly = args.includes('--diagnose');
+  const email = (args.find((arg) => arg !== '--' && arg !== '--diagnose') ?? DEFAULT_EMAIL)
     .trim()
     .toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.error('Invalid email address.');
     process.exitCode = 1;
+    return;
+  }
+
+  if (!process.env.DATABASE_URL) {
+    console.error(
+      'DATABASE_URL is not set in this process. No database connection was attempted.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  if (diagnoseOnly) {
+    let renderHost = false;
+    try {
+      renderHost = new URL(process.env.DATABASE_URL).hostname
+        .toLowerCase()
+        .endsWith('.render.com');
+    } catch {
+      // Do not print or otherwise expose the configured connection string.
+    }
+    console.log(
+      `Configured database target: ${renderHost ? 'Render host' : 'not identified as a Render host'}.`,
+    );
+    currentStage = 'database connection';
+    await prisma.$connect();
+    currentStage = 'read-only account lookup';
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { role: true, isActive: true },
+    });
+    console.log('Database connection: successful.');
+    console.log(`Account ${email}: ${user ? 'exists' : 'not found'}.`);
+    if (user) {
+      console.log(`Role: ${user.role}; active: ${user.isActive ? 'yes' : 'no'}.`);
+    }
     return;
   }
 
@@ -87,6 +153,7 @@ async function main() {
     return;
   }
 
+  currentStage = 'account lookup';
   const user = await prisma.user.findUnique({
     where: { email },
     select: { id: true, role: true, isActive: true },
@@ -104,12 +171,14 @@ async function main() {
     return;
   }
 
+  currentStage = 'hidden password prompt';
   const { password, confirmation } = await promptHiddenPair(email);
   if (password !== confirmation) {
     console.error('Passwords do not match. Nothing changed.');
     process.exitCode = 1;
     return;
   }
+  currentStage = 'password validation';
   const parsed = passwordSchema.safeParse(password);
   if (!parsed.success) {
     console.error(
@@ -119,9 +188,12 @@ async function main() {
     return;
   }
 
+  currentStage = 'password hashing';
+  const passwordHash = await bcrypt.hash(password, 12);
+  currentStage = 'password update';
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(password, 12) },
+    data: { passwordHash },
   });
   console.log(`Password updated for ${email}.`);
   if (!user.isActive) {
@@ -137,7 +209,7 @@ main()
       console.error('Cancelled. Nothing changed.');
     } else {
       // Database/client errors can contain connection details; never log raw errors.
-      console.error('Password reset failed. No secret values were logged.');
+      reportSafeError(error);
     }
     process.exitCode = 1;
   })

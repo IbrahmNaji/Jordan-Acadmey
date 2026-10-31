@@ -22,6 +22,10 @@ import vehiclesRoutes from './modules/vehicles/vehicles.routes';
 import brokerageRoutes from './modules/brokerage/brokerage.routes';
 import workshopRoutes from './modules/workshop/workshop.routes';
 import partsRoutes from './modules/parts/parts.routes';
+import {
+  isAdminRecoveryDiagnosticsEnabled,
+  registerAdminRecoveryDiagnostics,
+} from './modules/adminRecovery/adminRecoveryDiagnostics';
 
 export const app = express();
 
@@ -69,6 +73,29 @@ app.use('/api/vehicles', vehiclesRoutes);
 app.use('/api/brokerage', brokerageRoutes);
 app.use('/api/workshop', workshopRoutes);
 app.use('/api/parts', partsRoutes);
+
+registerAdminRecoveryDiagnostics({
+  app,
+  enabled: isAdminRecoveryDiagnosticsEnabled(
+    env.ADMIN_RECOVERY_DIAGNOSTICS_ENABLED,
+  ),
+  key: env.ADMIN_RECOVERY_DIAGNOSTICS_KEY,
+  inspect: async () => {
+    const [userCount, adminAccounts] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.findMany({
+        where: { role: 'ADMIN' },
+        select: { email: true, role: true },
+        orderBy: { email: 'asc' },
+      }),
+    ]);
+
+    return {
+      userCount,
+      adminAccounts,
+    };
+  },
+});
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'NOT_FOUND' });
