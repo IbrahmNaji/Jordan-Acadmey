@@ -1,4 +1,4 @@
-// Interactive local/DBA utility: resets an ADMIN or MANAGER password.
+// Interactive local/DBA utility: resets an ADMIN password.
 // The password is read with echo disabled, never printed, and never logged.
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
@@ -6,7 +6,7 @@ import { passwordSchema } from '../src/utils/validation';
 
 const prisma = new PrismaClient();
 const DEFAULT_EMAIL = 'admin@academy.local';
-const ALLOWED_ROLES = new Set(['ADMIN', 'MANAGER']);
+const ALLOWED_ROLES = new Set(['ADMIN']);
 
 function readSecret(question: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -52,23 +52,9 @@ function readSecret(question: string): Promise<string> {
   });
 }
 
-async function readPipedPair(): Promise<{ password: string; confirmation: string }> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
-  const lines = Buffer.concat(chunks).toString('utf8').split(/\r?\n/);
-  return { password: lines[0] ?? '', confirmation: lines[1] ?? '' };
-}
-
 async function promptHiddenPair(
   email: string,
 ): Promise<{ password: string; confirmation: string }> {
-  if (!process.stdin.isTTY) {
-    const pair = await readPipedPair();
-    if (pair.password === '') {
-      throw new Error('EMPTY_INPUT');
-    }
-    return pair;
-  }
   const password = await readSecret(`New password for ${email}: `);
   const confirmation = await readSecret('Confirm password: ');
   return { password, confirmation };
@@ -79,7 +65,7 @@ async function main() {
   if (args.includes('--help') || args.includes('-h')) {
     console.log(
       'Usage: npm run db:reset-admin-password [-- email]\n' +
-        `Default email: ${DEFAULT_EMAIL}. Only ADMIN and MANAGER accounts are accepted.`,
+        `Default email: ${DEFAULT_EMAIL}. Only ADMIN accounts are accepted.`,
     );
     return;
   }
@@ -89,6 +75,14 @@ async function main() {
     .toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     console.error('Invalid email address.');
+    process.exitCode = 1;
+    return;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.error(
+      'Interactive terminal required. No database changes were made.',
+    );
     process.exitCode = 1;
     return;
   }
@@ -104,7 +98,7 @@ async function main() {
   }
   if (!ALLOWED_ROLES.has(user.role)) {
     console.error(
-      `Refusing to reset a password for role ${user.role}; only ADMIN or MANAGER accounts are accepted.`,
+      `Refusing to reset a password for role ${user.role}; only ADMIN accounts are accepted.`,
     );
     process.exitCode = 1;
     return;
@@ -141,10 +135,9 @@ main()
   .catch((error) => {
     if (error instanceof Error && error.message === 'CANCELLED') {
       console.error('Cancelled. Nothing changed.');
-    } else if (error instanceof Error && error.message === 'EMPTY_INPUT') {
-      console.error('No password provided. Nothing changed.');
     } else {
-      console.error(error);
+      // Database/client errors can contain connection details; never log raw errors.
+      console.error('Password reset failed. No secret values were logged.');
     }
     process.exitCode = 1;
   })
