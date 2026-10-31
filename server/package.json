@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "test:admin-recovery-diagnostics": "npm run build && node --test dist/modules/adminRecovery/adminRecoveryDiagnostics.test.js",
+    "test:admin-recovery-diagnostics": "npm run build && node --test dist/modules/adminRecovery/adminRecoveryDiagnostics.test.js dist/modules/adminRecovery/adminBootstrap.test.js",
     "start": "node dist/server.js",
     "smoke": "npm run build && node scripts/smoke.mjs",
     "db:generate": "prisma generate",

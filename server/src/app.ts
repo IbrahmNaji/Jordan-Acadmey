@@ -26,6 +26,8 @@ import {
   isAdminRecoveryDiagnosticsEnabled,
   registerAdminRecoveryDiagnostics,
 } from './modules/adminRecovery/adminRecoveryDiagnostics';
+import { bootstrapAdminAccount } from './modules/adminRecovery/adminBootstrap.service';
+import { registerAdminBootstrapRoute } from './modules/adminRecovery/adminBootstrap.routes';
 
 export const app = express();
 
@@ -95,6 +97,13 @@ registerAdminRecoveryDiagnostics({
       adminAccounts,
     };
   },
+});
+
+registerAdminBootstrapRoute({
+  app,
+  enabled: env.ADMIN_BOOTSTRAP_ENABLED,
+  key: env.ADMIN_BOOTSTRAP_KEY,
+  createAdmin: ({ email, password }) => bootstrapAdminAccount(email, password),
 });
 
 app.use('/api', (_req, res) => {
