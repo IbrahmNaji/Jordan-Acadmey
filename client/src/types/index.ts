@@ -248,6 +248,7 @@ export interface Instructor {
   bio?: string | null;
   phone?: string | null;
   email?: string | null;
+  imageUrl?: string | null;
   isActive: boolean;
   _count?: { courses: number; batches: number };
 }

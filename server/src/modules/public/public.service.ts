@@ -72,6 +72,7 @@ export class PublicService {
             fullName: true,
             specialty: true,
             bio: true,
+            imageUrl: true,
             isActive: true,
             courses: PUBLIC_INSTRUCTOR_COURSES,
           },
@@ -106,6 +107,7 @@ export class PublicService {
             fullName: instructor.fullName,
             specialty: instructor.specialty,
             bio: instructor.bio,
+            imageUrl: instructor.imageUrl,
             courses: instructor.courses,
           }
         : null,
@@ -123,6 +125,7 @@ export class PublicService {
         fullName: true,
         specialty: true,
         bio: true,
+        imageUrl: true,
         courses: PUBLIC_INSTRUCTOR_COURSES,
       },
       orderBy: { fullName: 'asc' },

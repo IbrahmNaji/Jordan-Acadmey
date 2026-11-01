@@ -1,9 +1,10 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BookOpen,
   CalendarDays,
   GraduationCap,
+  ImagePlus,
   Plus,
   Users,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ import {
   updateInstructor,
 } from '../api/academy';
 import { getApiErrorMessage } from '../lib/apiError';
+import { resolveMediaUrl, uploadImage } from '../api/media';
 import type {
   AcademyBatch,
   AcademyCourseSummary,
@@ -1176,7 +1178,26 @@ function InstructorModal({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imageUrl, setImageUrl] = useState(instructor?.imageUrl ?? '');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  useEffect(() => {
+    setImageUrl(instructor?.imageUrl ?? '');
+    setError(null);
+  }, [instructor, open]);
   if (!open) return null;
+
+  const chooseImage = async (file?: File) => {
+    if (!file) return;
+    setUploadingImage(true);
+    setError(null);
+    try {
+      setImageUrl(await uploadImage(file, 'instructors'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : getApiErrorMessage(err));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1190,6 +1211,7 @@ function InstructorModal({
       phone: nullable('phone'),
       email: nullable('email'),
       bio: nullable('bio'),
+      imageUrl: imageUrl || null,
       isActive: fd.get('isActive') === 'on',
     };
 
@@ -1248,6 +1270,17 @@ function InstructorModal({
             className={inputClass}
           />
         </Field>
+        <Field label="صورة المدرب">
+          <div className="flex flex-wrap items-center gap-3">
+            {imageUrl && <img src={resolveMediaUrl(imageUrl)} alt="معاينة صورة المدرب" className="h-20 w-20 rounded-lg object-cover" />}
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-steel-300 px-4 text-sm font-semibold hover:border-flame-500">
+              <ImagePlus size={16} /> {uploadingImage ? 'جارٍ رفع الصورة…' : imageUrl ? 'تغيير الصورة' : 'رفع صورة من الجهاز'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploadingImage} onChange={(event) => { void chooseImage(event.target.files?.[0]); event.target.value = ''; }} />
+            </label>
+            {imageUrl && <button type="button" className="text-sm text-red-700" onClick={() => setImageUrl('')}>حذف الصورة</button>}
+          </div>
+          <p className="mt-1 text-xs text-steel-500">JPG أو PNG أو WebP، بحد أقصى 5 ميغابايت.</p>
+        </Field>
         <Field label="نبذة">
           <textarea
             name="bio"
@@ -1272,7 +1305,7 @@ function InstructorModal({
           </div>
         )}
 
-        <ModalActions saving={saving} onClose={onClose} label="حفظ المدرب" />
+        <ModalActions saving={saving || uploadingImage} onClose={onClose} label="حفظ المدرب" />
       </form>
     </ModalShell>
   );

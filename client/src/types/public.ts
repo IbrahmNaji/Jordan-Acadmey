@@ -21,6 +21,7 @@ export interface PublicInstructor {
   fullName: string;
   specialty: string | null;
   bio: string | null;
+  imageUrl: string | null;
   courses: Array<{ slug: string; title: string }>;
 }
 

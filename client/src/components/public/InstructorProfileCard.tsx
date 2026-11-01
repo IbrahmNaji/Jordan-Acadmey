@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, UserRound } from 'lucide-react';
 import type { PublicInstructor } from '../../types/public';
+import { resolveMediaUrl } from '../../api/media';
 
 interface InstructorProfileCardProps {
   instructor: PublicInstructor;
@@ -13,8 +14,9 @@ export default function InstructorProfileCard({
   compact = false,
   currentCourseSlug,
 }: InstructorProfileCardProps) {
-  const profileImage =
-    instructor.id === '5e797948-8ef8-437c-b7ac-8d01a002395d'
+  const profileImage = instructor.imageUrl
+    ? resolveMediaUrl(instructor.imageUrl)
+    : instructor.id === '5e797948-8ef8-437c-b7ac-8d01a002395d'
       ? '/images/instructors/omar-mustafa.webp'
       : null;
   const otherCourses = instructor.courses.filter(
@@ -29,7 +31,7 @@ export default function InstructorProfileCard({
       {profileImage ? (
         <img
           src={profileImage}
-          alt={`المهندس عمر مصطفى، مهندس تكنولوجيا مركبات`}
+          alt={`صورة المدرب ${instructor.fullName}`}
           className={`w-full object-cover object-[center_32%] ${compact ? 'h-full min-h-[180px]' : 'aspect-[4/3]'}`}
         />
       ) : (

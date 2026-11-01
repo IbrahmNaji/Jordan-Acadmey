@@ -22,6 +22,7 @@ import vehiclesRoutes from './modules/vehicles/vehicles.routes';
 import brokerageRoutes from './modules/brokerage/brokerage.routes';
 import workshopRoutes from './modules/workshop/workshop.routes';
 import partsRoutes from './modules/parts/parts.routes';
+import mediaRoutes from './modules/media/media.routes';
 import {
   isAdminRecoveryDiagnosticsEnabled,
   registerAdminRecoveryDiagnostics,
@@ -75,6 +76,7 @@ app.use('/api/vehicles', vehiclesRoutes);
 app.use('/api/brokerage', brokerageRoutes);
 app.use('/api/workshop', workshopRoutes);
 app.use('/api/parts', partsRoutes);
+app.use('/api/media', mediaRoutes);
 
 registerAdminRecoveryDiagnostics({
   app,

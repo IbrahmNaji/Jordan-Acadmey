@@ -11,7 +11,7 @@ const include = {
   assignedTo: { select: { id: true, fullName: true } },
   reviewedBy: { select: { id: true, fullName: true } },
 } satisfies Prisma.VehicleListingInclude;
-const mediaPath = (v: string) => /^\/?uploads\/vehicles\/[A-Za-z0-9._/-]{1,240}$/.test(v) && !v.includes('..');
+const mediaPath = (v: string) => (/^\/?uploads\/vehicles\/[A-Za-z0-9._/-]{1,240}$/.test(v) && !v.includes('..')) || /^\/media\/[0-9a-f-]{36}$/i.test(v);
 const scope = (u: AuthUser): Prisma.VehicleListingWhereInput => u.role === 'AGENT' ? { assignedToId: u.id } : {};
 
 export interface VehicleInput {

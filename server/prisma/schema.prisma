@@ -36,6 +36,7 @@ model User {
   inspectionRecords          WorkshopInspectionRecord[]
   recordedWorkshopPayments   WorkshopPayment[]
   createdPartsQuotations     PartsQuotation[]
+  uploadedMedia              MediaAsset[]
 
   @@index([role])
 }
@@ -653,6 +654,24 @@ model CustomerContact {
   @@index([customerId])
 }
 
+enum MediaPurpose {
+  VEHICLE_IMAGE
+  INSTRUCTOR_IMAGE
+}
+
+model MediaAsset {
+  id          String      @id @default(uuid())
+  purpose     MediaPurpose
+  mimeType    String
+  data        Bytes
+  createdById String
+  createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime    @default(now())
+
+  @@index([purpose, createdAt])
+  @@index([createdById])
+}
+
 model ConsentRecord {
   id         String    @id @default(uuid())
   customerId String?
@@ -735,6 +754,7 @@ model Instructor {
   bio       String?
   phone     String?
   email     String?
+  imageUrl  String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

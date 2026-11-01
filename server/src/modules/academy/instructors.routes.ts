@@ -19,6 +19,7 @@ const createSchema = z
     bio: z.string().trim().max(2000).nullable().optional(),
     phone: z.string().trim().max(24).nullable().optional(),
     email: z.string().trim().email().max(160).nullable().optional(),
+    imageUrl: z.string().regex(/^\/media\/[0-9a-f-]{36}$/i).nullable().optional(),
     isActive: z.boolean().optional(),
   })
   .strict();
@@ -67,6 +68,7 @@ router.post(
         bio: body.bio ?? null,
         phone: body.phone ?? null,
         email: body.email ?? null,
+        imageUrl: body.imageUrl ?? null,
         isActive: body.isActive ?? true,
       },
     });
@@ -98,6 +100,7 @@ router.patch(
     if (body.bio !== undefined) data.bio = body.bio;
     if (body.phone !== undefined) data.phone = body.phone;
     if (body.email !== undefined) data.email = body.email;
+    if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
     if (body.isActive !== undefined) data.isActive = body.isActive;
 
     const updated = await prisma.instructor.update({ where: { id }, data });
