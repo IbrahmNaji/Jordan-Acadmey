@@ -71,7 +71,7 @@ export default function Dashboard() {
       value: formatMoney(stats.totalRevenue),
       hint: 'الدفعات المحصّلة',
       icon: DollarSign,
-      tone: 'bg-amber-50 text-amber-600',
+      tone: 'bg-flame-50 text-flame-700',
       to: isAgent ? '/admin/enrollments' : '/admin/reports',
     },
   ];

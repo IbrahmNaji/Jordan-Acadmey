@@ -177,7 +177,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-flame-500 px-4 py-2.5 text-sm font-bold text-ink-950 transition hover:bg-flame-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-flame-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-flame-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <LogIn size={16} />
                 {submitting ? 'جارٍ تسجيل الدخول…' : 'تسجيل الدخول'}

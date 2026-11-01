@@ -21,13 +21,13 @@ const CHANNEL_LABEL: Record<Channel, string> = {
 };
 
 const CHANNEL_BADGE: Record<Channel, string> = {
-  FACEBOOK: 'bg-blue-50 text-blue-700 ring-blue-200',
-  INSTAGRAM: 'bg-pink-50 text-pink-700 ring-pink-200',
-  WHATSAPP: 'bg-green-50 text-green-700 ring-green-200',
+  FACEBOOK: 'bg-flame-50 text-flame-800 ring-flame-200',
+  INSTAGRAM: 'bg-flame-100/70 text-flame-800 ring-flame-200',
+  WHATSAPP: 'bg-flame-50 text-flame-700 ring-flame-200',
   PHONE: 'bg-gray-100 text-gray-700 ring-gray-200',
-  WALK_IN: 'bg-amber-50 text-amber-800 ring-amber-200',
+  WALK_IN: 'bg-steel-100 text-ink-700 ring-steel-200',
   REFERRAL: 'bg-steel-200/50 text-ink-700 ring-steel-200',
-  GOOGLE_ADS: 'bg-yellow-50 text-yellow-800 ring-yellow-200',
+  GOOGLE_ADS: 'bg-steel-100 text-ink-700 ring-steel-200',
   OTHER: 'bg-gray-100 text-gray-600 ring-gray-200',
 };
 

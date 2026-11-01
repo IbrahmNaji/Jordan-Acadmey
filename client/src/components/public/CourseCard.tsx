@@ -43,7 +43,7 @@ export default function CourseCard({ course }: { course: PublicCourse }) {
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ink-900/10 pt-4">
             <Link to={`/courses/${course.slug}`} className="inline-flex min-h-10 items-center gap-2 font-display text-xs font-bold text-ink-900 transition-colors group-hover:text-flame-700">عرض التفاصيل <ArrowLeft size={15} aria-hidden="true" className="text-flame-600 transition-transform duration-300 group-hover:-translate-x-1"/></Link>
-            <Link to="/contact" className="inline-flex min-h-10 items-center rounded-lg bg-ink-900 px-3 text-[11px] font-bold text-white transition-colors hover:bg-flame-500 hover:text-ink-950">استفسر عن الدورة</Link>
+            <Link to="/contact" className="inline-flex min-h-10 items-center rounded-lg bg-ink-900 px-3 text-[11px] font-bold text-white transition-colors hover:bg-flame-500 hover:text-white">استفسر عن الدورة</Link>
           </div>
         </div>
     </article>

@@ -61,7 +61,7 @@ export default function ContactPage() {
                       href={`tel:${contact.phone.replace(/\s/g, '')}`}
                       className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-flame-500/60"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-ink-950">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-white">
                         <Phone size={16} aria-hidden="true" />
                       </span>
                       <span>
@@ -88,7 +88,7 @@ export default function ContactPage() {
                       rel="noreferrer"
                       className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-flame-500/60"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-ink-950">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-white">
                         <MessageCircle size={16} aria-hidden="true" />
                       </span>
                       <span>
@@ -112,7 +112,7 @@ export default function ContactPage() {
                       rel="noreferrer"
                       className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-flame-500/60"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-ink-950">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-white">
                         <Camera size={16} aria-hidden="true" />
                       </span>
                       <span>
@@ -134,7 +134,7 @@ export default function ContactPage() {
                       href={`mailto:${contact.email}`}
                       className="flex items-center gap-3 border border-white/10 bg-white/[0.03] p-4 transition-colors hover:border-flame-500/60"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-ink-950">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-flame-500 text-white">
                         <Mail size={16} aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
@@ -184,7 +184,7 @@ export default function ContactPage() {
                 <div className="mt-6 flex items-start gap-2.5 border-t border-white/10 pt-5 text-[11px] leading-6 text-steel-500">
                   <ShieldCheck
                     size={14}
-                    className="mt-0.5 shrink-0 text-flame-500"
+                    className="mt-0.5 shrink-0 text-flame-300"
                     aria-hidden="true"
                   />
                   بياناتك تُستخدم للتواصل بخصوص استفسارك فقط. اطّلع على{' '}

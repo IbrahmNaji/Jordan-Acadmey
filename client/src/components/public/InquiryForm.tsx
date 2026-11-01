@@ -426,7 +426,7 @@ export default function InquiryForm({
                     className={clsx(
                       'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center',
                       active
-                        ? 'bg-flame-500 text-ink-950'
+                        ? 'bg-flame-500 text-white'
                         : 'bg-paper-muted text-steel-600',
                     )}
                   >

@@ -172,7 +172,7 @@ export default function CoursesPage() {
                 </div>
                 <button
                   type="submit"
-                  className="flex h-[42px] items-center justify-center bg-flame-500 px-4 font-display text-xs font-bold text-ink-950 transition-colors hover:bg-flame-400"
+                  className="flex h-[42px] items-center justify-center bg-flame-500 px-4 font-display text-xs font-bold text-white transition-colors hover:bg-flame-600"
                 >
                   بحث
                 </button>

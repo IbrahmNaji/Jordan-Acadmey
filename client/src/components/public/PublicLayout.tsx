@@ -9,7 +9,7 @@ export default function PublicLayout() {
     <div className="flex min-h-screen flex-col bg-paper">
       <a
         href="#main-content"
-        className="sr-only z-[60] bg-flame-500 px-4 py-3 font-bold text-ink-950 focus:not-sr-only focus:fixed focus:right-4 focus:top-4"
+        className="sr-only z-[60] bg-flame-500 px-4 py-3 font-bold text-white focus:not-sr-only focus:fixed focus:right-4 focus:top-4"
       >
         تجاوز إلى المحتوى الرئيسي
       </a>

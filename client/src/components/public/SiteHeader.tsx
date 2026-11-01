@@ -62,7 +62,7 @@ export default function SiteHeader() {
               aria-label={`افتح موقعنا على الخريطة: ${site.location}`}
               className="inline-flex items-center gap-1.5 transition-colors hover:text-paper"
             >
-              <MapPin size={12} aria-hidden="true" className="text-flame-500" />
+              <MapPin size={12} aria-hidden="true" className="text-flame-300" />
               {site.location}
             </a>
             {contact.phone && (
@@ -70,7 +70,7 @@ export default function SiteHeader() {
                 href={`tel:${contact.phone.replace(/\s/g, '')}`}
                 className="inline-flex items-center gap-1.5 transition-colors hover:text-paper"
               >
-                <Phone size={12} aria-hidden="true" className="text-flame-500" />
+                <Phone size={12} aria-hidden="true" className="text-flame-300" />
                 <span dir="ltr" className="tabular-nums">
                   {contact.phone}
                 </span>
@@ -87,7 +87,7 @@ export default function SiteHeader() {
                 <Camera
                   size={12}
                   aria-hidden="true"
-                  className="text-flame-500"
+                  className="text-flame-300"
                 />
                 <span dir="ltr">@academicjordan</span>
               </a>
@@ -146,7 +146,7 @@ export default function SiteHeader() {
           <div className="flex items-center gap-2">
             <Link
               to="/contact"
-              className="hidden min-h-[42px] items-center gap-2 border border-flame-500 bg-flame-500 px-5 font-display text-xs font-bold text-ink-950 transition-colors hover:bg-transparent hover:text-flame-400 sm:inline-flex"
+              className="hidden min-h-[42px] items-center gap-2 border border-flame-500 bg-flame-500 px-5 font-display text-xs font-bold text-white transition-colors hover:bg-transparent hover:text-flame-400 sm:inline-flex"
             >
               تواصل معنا
               <ArrowLeft size={14} aria-hidden="true" />
@@ -231,7 +231,7 @@ export default function SiteHeader() {
                 rel="noreferrer"
                 className="flex items-center gap-2 transition-colors hover:text-paper"
               >
-                <MapPin size={15} className="text-flame-500" aria-hidden="true" />
+                <MapPin size={15} className="text-flame-300" aria-hidden="true" />
                 {site.location}
               </a>
               {contact.phone && (
@@ -239,7 +239,7 @@ export default function SiteHeader() {
                   href={`tel:${contact.phone.replace(/\s/g, '')}`}
                   className="flex items-center gap-2 transition-colors hover:text-paper"
                 >
-                  <Phone size={15} className="text-flame-500" aria-hidden="true" />
+                  <Phone size={15} className="text-flame-300" aria-hidden="true" />
                   <span dir="ltr" className="tabular-nums">
                     {contact.phone}
                   </span>
@@ -250,7 +250,7 @@ export default function SiteHeader() {
                   href={`mailto:${contact.email}`}
                   className="flex items-center gap-2 transition-colors hover:text-paper"
                 >
-                  <Mail size={15} className="text-flame-500" aria-hidden="true" />
+                  <Mail size={15} className="text-flame-300" aria-hidden="true" />
                   <span dir="ltr">{contact.email}</span>
                 </a>
               )}
@@ -266,7 +266,7 @@ export default function SiteHeader() {
                 >
                   <MessageCircle
                     size={15}
-                    className="text-flame-500"
+                    className="text-flame-300"
                     aria-hidden="true"
                   />
                   واتساب
@@ -281,7 +281,7 @@ export default function SiteHeader() {
                 >
                   <Camera
                     size={15}
-                    className="text-flame-500"
+                    className="text-flame-300"
                     aria-hidden="true"
                   />
                   <span>انستغرام</span>

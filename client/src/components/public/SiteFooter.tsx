@@ -43,7 +43,7 @@ export default function SiteFooter() {
               rel="noreferrer"
               className="mt-5 inline-flex items-center gap-2 text-xs text-steel-400 transition-colors hover:text-paper"
             >
-              <MapPin size={14} className="text-flame-500" aria-hidden="true" />
+              <MapPin size={14} className="text-flame-300" aria-hidden="true" />
               {site.location}
             </a>
           </div>
@@ -94,7 +94,7 @@ export default function SiteFooter() {
                   href={`tel:${contact.phone.replace(/\s/g, '')}`}
                   className="flex items-center gap-2 text-[13px] text-steel-300 transition-colors hover:text-flame-400"
                 >
-                  <Phone size={14} className="text-flame-500" aria-hidden="true" />
+                  <Phone size={14} className="text-flame-300" aria-hidden="true" />
                   <span dir="ltr" className="tabular-nums">
                     {contact.phone}
                   </span>
@@ -112,7 +112,7 @@ export default function SiteFooter() {
                 >
                   <MessageCircle
                     size={14}
-                    className="text-flame-500"
+                    className="text-flame-300"
                     aria-hidden="true"
                   />
                   واتساب الأكاديمية
@@ -123,7 +123,7 @@ export default function SiteFooter() {
                   href={`mailto:${contact.email}`}
                   className="flex items-center gap-2 text-[13px] text-steel-300 transition-colors hover:text-flame-400"
                 >
-                  <Mail size={14} className="text-flame-500" aria-hidden="true" />
+                  <Mail size={14} className="text-flame-300" aria-hidden="true" />
                   <span dir="ltr">{contact.email}</span>
                 </a>
               )}
@@ -136,7 +136,7 @@ export default function SiteFooter() {
                 >
                   <Camera
                     size={14}
-                    className="text-flame-500"
+                    className="text-flame-300"
                     aria-hidden="true"
                   />
                   <span>انستغرام</span>

@@ -3,6 +3,28 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Core green sampled from the academy logo; keep the shades centralized here. */
+    --brand-primary: 0 112 0;
+    --brand-primary-deep: 3 58 8;
+    --brand-primary-dark: 2 45 5;
+    --brand-green-50: 240 247 240;
+    --brand-green-100: 222 239 223;
+    --brand-green-200: 188 224 190;
+    --brand-green-300: 133 200 139;
+    --brand-green-400: 62 161 74;
+    --brand-green-500: 0 112 0;
+    --brand-green-600: 0 92 5;
+    --brand-green-700: 3 78 8;
+    --brand-green-800: 2 57 7;
+    --brand-green-900: 1 40 5;
+    --brand-sidebar: 2 45 5;
+    --brand-sidebar-hover: 18 40 23;
+    --surface-page: 243 245 243;
+    --surface-card: 255 255 255;
+    --text-primary: 16 25 19;
+    --text-muted: 91 103 94;
+  }
   html {
     direction: rtl;
     scroll-behavior: smooth;
@@ -10,7 +32,7 @@
     scrollbar-color: #8b9299 #eef0f1;
   }
   body {
-    @apply bg-[#f3f4f2] text-ink-900 antialiased;
+    @apply bg-[rgb(var(--surface-page))] text-ink-900 antialiased;
     font-family: 'Tajawal', system-ui, 'Segoe UI', sans-serif;
   }
   button,
@@ -40,13 +62,13 @@
     transition: background-color 160ms ease;
   }
   tbody tr:hover {
-    background-color: rgba(255, 246, 229, 0.55);
+    background-color: rgb(var(--brand-green-50) / 0.55);
   }
   ::selection {
-    @apply bg-flame-500 text-ink-950;
+    @apply bg-flame-500 text-white;
   }
   :focus-visible {
-    outline: 2px solid #d98b1e;
+    outline: 2px solid rgb(var(--brand-primary));
     outline-offset: 3px;
   }
   body.is-locked {
@@ -83,7 +105,7 @@
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-flame-500 text-ink-950 shadow-flame transition duration-200 hover:-translate-y-0.5 hover:bg-flame-400;
+    @apply btn bg-flame-500 text-white shadow-flame transition duration-200 hover:-translate-y-0.5 hover:bg-flame-600;
   }
   .btn-secondary {
     @apply btn bg-gray-200 text-gray-800 hover:bg-gray-300;
@@ -109,10 +131,10 @@
     @apply inline-flex min-h-[48px] items-center justify-center gap-2.5 rounded-lg px-6 py-3 font-display text-sm font-bold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-flame {
-    @apply public-btn bg-flame-500 text-ink-950 hover:bg-flame-400 shadow-flame;
+    @apply public-btn bg-flame-500 text-white hover:bg-flame-600 shadow-flame;
   }
   .btn-outline-light {
-    @apply public-btn border border-white/25 bg-white/[0.03] text-paper hover:border-flame-500 hover:bg-flame-500 hover:text-ink-950;
+    @apply public-btn border border-white/25 bg-white/[0.03] text-paper hover:border-flame-500 hover:bg-flame-500 hover:text-white;
   }
   .btn-outline-ink {
     @apply public-btn border border-ink-900/20 text-ink-900 hover:border-ink-900 hover:bg-ink-900 hover:text-paper;
@@ -189,8 +211,8 @@
   .admin-scope input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
   .admin-scope select:focus,
   .admin-scope textarea:focus {
-    border-color: #d98b1e;
-    box-shadow: 0 0 0 3px rgba(217, 139, 30, 0.14);
+    border-color: rgb(var(--brand-primary));
+    box-shadow: 0 0 0 3px rgb(var(--brand-primary) / 0.14);
     outline: none;
   }
   .admin-scope table th {

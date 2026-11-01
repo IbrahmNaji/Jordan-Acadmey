@@ -245,7 +245,7 @@ export default function WorkshopPage() {
             <div className="lg:col-span-7">
               <div className="border border-white/10 bg-white/[0.03] p-6 sm:p-8">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center bg-flame-500 text-ink-950">
+                  <span className="flex h-10 w-10 items-center justify-center bg-flame-500 text-white">
                     <ShieldCheck size={20} aria-hidden="true" />
                   </span>
                   <h3 className="font-display text-base font-bold">
@@ -265,7 +265,7 @@ export default function WorkshopPage() {
                     >
                       <Check
                         size={13}
-                        className="mt-1 shrink-0 text-flame-500"
+                        className="mt-1 shrink-0 text-flame-300"
                         aria-hidden="true"
                       />
                       {item}

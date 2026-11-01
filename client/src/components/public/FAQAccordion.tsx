@@ -52,7 +52,7 @@ export default function FAQAccordion({
                   className={clsx(
                     'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors',
                     expanded
-                      ? 'border-flame-500 bg-flame-500 text-ink-950'
+                      ? 'border-flame-500 bg-flame-500 text-white'
                       : onDark
                         ? 'border-white/20 text-steel-300'
                         : 'border-ink-900/15 text-steel-600',

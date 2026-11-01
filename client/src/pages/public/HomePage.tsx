@@ -182,7 +182,7 @@ function Hero() {
               <li key={item} className="flex items-center gap-2">
                 <Check
                   size={14}
-                  className="text-flame-500"
+                  className="text-flame-300"
                   aria-hidden="true"
                 />
                 {item}
@@ -196,7 +196,7 @@ function Hero() {
           <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-ink-900/80 p-3 shadow-2xl backdrop-blur">
             <img src="/images/workshop/practical-training.webp" alt="تدريب عملي على أنظمة المركبات" loading="lazy" decoding="async" width={900} height={1100} className="aspect-[4/4.5] w-full rounded-xl object-cover" />
             <div className="absolute inset-x-3 bottom-3 rounded-xl border border-white/10 bg-ink-950/90 p-4 backdrop-blur-md sm:p-5">
-              <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-flame-500 text-ink-950"><ScanLine size={20}/></span><div><p className="text-[10px] font-bold tracking-[.18em] text-flame-300">تدريب تطبيقي</p><p className="mt-1 text-sm font-bold text-white">من الفحص إلى فهم العطل</p></div></div>
+              <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-flame-500 text-white"><ScanLine size={20}/></span><div><p className="text-[10px] font-bold tracking-[.18em] text-flame-300">تدريب تطبيقي</p><p className="mt-1 text-sm font-bold text-white">من الفحص إلى فهم العطل</p></div></div>
             </div>
           </div>
           <div className="absolute -right-5 top-8 hidden items-center gap-3 rounded-xl border border-white/10 bg-ink-900/95 px-4 py-3 shadow-xl sm:flex"><Gauge className="text-flame-300" size={18}/><span className="text-xs font-semibold text-white">تعلم تقني بخطوات واضحة</span></div>

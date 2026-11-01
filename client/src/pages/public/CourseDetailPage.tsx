@@ -155,17 +155,17 @@ export default function CourseDetailPage() {
 
               <ul className="mt-7 flex flex-wrap gap-2">
                 <li className="inline-flex items-center gap-2 border border-white/15 px-3 py-1.5 text-[11px] text-steel-300">
-                  <Wrench size={13} className="text-flame-500" aria-hidden="true" />
+                  <Wrench size={13} className="text-flame-300" aria-hidden="true" />
                   تدريب عملي
                 </li>
                 <li className="inline-flex items-center gap-2 border border-white/15 px-3 py-1.5 text-[11px] text-steel-300">
-                  <MapPin size={13} className="text-flame-500" aria-hidden="true" />
+                  <MapPin size={13} className="text-flame-300" aria-hidden="true" />
                   {site.location}
                 </li>
                 <li className="inline-flex items-center gap-2 border border-white/15 px-3 py-1.5 text-[11px] text-steel-300">
                   <MessageCircle
                     size={13}
-                    className="text-flame-500"
+                    className="text-flame-300"
                     aria-hidden="true"
                   />
                   استفسار مباشر
@@ -425,7 +425,7 @@ export default function CourseDetailPage() {
             </div>
             <a
               href="#inquiry"
-              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 bg-flame-500 px-4 font-display text-xs font-bold text-ink-950"
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-2 bg-flame-500 px-4 font-display text-xs font-bold text-white"
             >
               اطلب معلومات
               <ArrowDown size={15} aria-hidden="true" />
