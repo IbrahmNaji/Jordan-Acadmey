@@ -12,7 +12,7 @@ export interface VehicleListing {
 export interface PublicVehicle { id:string; make:string; model:string; year:number; mileage:number|null; transmission:string|null; fuelType:string|null; city:string; description:string|null; askingPrice:string; currency:string; isPriceNegotiable:boolean; mediaPaths:string[]; publishedAt:string|null; }
 export interface VehicleOwner {id:string;fullName:string;phone:string|null;city:string|null}
 export interface VehicleInput {
-  ownerCustomerId:string; make:string; model:string; year:number; mileage?:number; transmission?:string;
+  ownerCustomerId?:string; ownerName?:string; ownerPhone?:string; make:string; model:string; year:number; mileage?:number; transmission?:string;
   fuelType?:string; vin?:string; city:string; description?:string; askingPrice:number; currency:string;
   isPriceNegotiable:boolean; mediaPaths:string[];
   ownerAuthorized:true; ownerAuthorizationMethod:'SIGNED_DOCUMENT'|'RECORDED_CALL'|'VERIFIED_MESSAGE'|'IN_PERSON';

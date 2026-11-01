@@ -9,7 +9,7 @@ import { VehiclesService } from './vehicles.service';
 const router=Router();const service=new VehiclesService();router.use(authenticate);
 const uuid=z.string().uuid();const media=z.array(z.string().trim().min(1).max(260)).max(12).default([]);
 const shape={
- ownerCustomerId:uuid,make:z.string().trim().min(1).max(80),model:z.string().trim().min(1).max(80),
+ ownerCustomerId:uuid.optional(),ownerName:z.string().trim().min(2).max(120).optional(),ownerPhone:z.string().trim().max(24).optional().or(z.literal('')),make:z.string().trim().min(1).max(80),model:z.string().trim().min(1).max(80),
  year:z.coerce.number().int().min(1950).max(new Date().getFullYear()+1),mileage:z.coerce.number().int().min(0).max(2000000).optional(),
  transmission:z.string().trim().max(40).optional(),fuelType:z.string().trim().max(40).optional(),vin:z.string().trim().max(40).optional(),
  city:z.string().trim().min(1).max(80),description:z.string().trim().max(3000).optional(),
@@ -18,7 +18,7 @@ const shape={
  mediaPaths:media,ownerAuthorized:z.literal(true),ownerAuthorizationMethod:z.enum(['SIGNED_DOCUMENT','RECORDED_CALL','VERIFIED_MESSAGE','IN_PERSON']),
  ownerAuthorizationNote:z.string().trim().min(8).max(1000),ownerAuthorizationPath:z.string().trim().max(260).optional(),
 };
-const create=z.object(shape).strict();const update=z.object(shape).partial().omit({ownerAuthorized:true}).strict();
+const create=z.object(shape).strict().superRefine((value,ctx)=>{if(!value.ownerCustomerId&&!value.ownerName)ctx.addIssue({code:z.ZodIssueCode.custom,path:['ownerName'],message:'أدخل اسم المالك'});});const update=z.object(shape).partial().omit({ownerAuthorized:true,ownerName:true,ownerPhone:true}).strict();
 router.get('/owners',requirePermission('vehicles:write','vehicles:contacts'),asyncHandler(async(req,res)=>{const q=z.object({q:z.string().trim().max(100).default('')}).parse(req.query);res.json(await service.owners(req.user!,q.q))}));
 router.get('/',requirePermission('vehicles:read'),asyncHandler(async(req,res)=>{const q=z.object({status:z.nativeEnum(VehicleListingStatus).optional(),search:z.string().trim().max(100).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(25)}).parse(req.query);res.json(await service.list(req.user!,q))}));
 router.get('/:id',requirePermission('vehicles:read'),asyncHandler(async(req,res)=>res.json(await service.detail(uuid.parse(req.params.id),req.user!))));

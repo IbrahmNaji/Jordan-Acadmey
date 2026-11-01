@@ -15,7 +15,7 @@ const mediaPath = (v: string) => (/^\/?uploads\/vehicles\/[A-Za-z0-9._/-]{1,240}
 const scope = (u: AuthUser): Prisma.VehicleListingWhereInput => u.role === 'AGENT' ? { assignedToId: u.id } : {};
 
 export interface VehicleInput {
-  ownerCustomerId: string; make: string; model: string; year: number;
+  ownerCustomerId?: string; ownerName?: string; ownerPhone?: string; make: string; model: string; year: number;
   mileage?: number; transmission?: string; fuelType?: string; vin?: string;
   city: string; description?: string; askingPrice: number; currency?: string;
   isPriceNegotiable?: boolean;
@@ -50,18 +50,27 @@ export class VehiclesService {
     }, select:{id:true,fullName:true,phone:true,city:true},orderBy:{fullName:'asc'},take:20 });
   }
   async create(input: VehicleInput, user: AuthUser) {
-    const owner = await prisma.customer.findFirst({ where:{id:input.ownerCustomerId,archivedAt:null,...(user.role==='AGENT'&&{leads:{some:{assignedToId:user.id}}})},select:{id:true} });
-    if(!owner) throw new AppError(400,'INVALID_OR_OUT_OF_SCOPE_OWNER');
+    let ownerId=input.ownerCustomerId;
+    if(ownerId){
+      const owner=await prisma.customer.findFirst({where:{id:ownerId,archivedAt:null,...(user.role==='AGENT'&&{leads:{some:{assignedToId:user.id}}})},select:{id:true}});
+      if(!owner) throw new AppError(400,'INVALID_OR_OUT_OF_SCOPE_OWNER');
+    }else if(!input.ownerName?.trim()) throw new AppError(400,'VEHICLE_OWNER_REQUIRED');
     if(!input.mediaPaths.every(mediaPath)|| (input.ownerAuthorizationPath&&!mediaPath(input.ownerAuthorizationPath))) throw new AppError(400,'INVALID_MEDIA_PATH');
-    return prisma.vehicleListing.create({data:{
-      ownerCustomerId:owner.id,assignedToId:user.role==='AGENT'?user.id:null,
-      make:input.make.trim(),model:input.model.trim(),year:input.year,mileage:input.mileage??null,
-      transmission:input.transmission?.trim()||null,fuelType:input.fuelType?.trim()||null,vin:input.vin?.trim().toUpperCase()||null,
-      city:input.city.trim(),description:input.description?.trim()||null,askingPrice:input.askingPrice,currency:input.currency||'SYP',
-      isPriceNegotiable:input.isPriceNegotiable??false,conditionVerifiedAt:null,inspectionReference:null,mediaPaths:input.mediaPaths,
-      ownerAuthorizationMethod:input.ownerAuthorizationMethod,ownerAuthorizationNote:input.ownerAuthorizationNote.trim(),
-      ownerAuthorizationPath:input.ownerAuthorizationPath||null,ownerAuthorizedAt:new Date(),status:'DRAFT',
-    },include});
+    return prisma.$transaction(async(tx)=>{
+      if(!ownerId){
+        const owner=await createCustomerForPerson({fullName:input.ownerName!,phone:input.ownerPhone},tx);
+        ownerId=owner.id;
+      }
+      return tx.vehicleListing.create({data:{
+        ownerCustomerId:ownerId!,assignedToId:user.role==='AGENT'?user.id:null,
+        make:input.make.trim(),model:input.model.trim(),year:input.year,mileage:input.mileage??null,
+        transmission:input.transmission?.trim()||null,fuelType:input.fuelType?.trim()||null,vin:input.vin?.trim().toUpperCase()||null,
+        city:input.city.trim(),description:input.description?.trim()||null,askingPrice:input.askingPrice,currency:input.currency||'SYP',
+        isPriceNegotiable:input.isPriceNegotiable??false,conditionVerifiedAt:null,inspectionReference:null,mediaPaths:input.mediaPaths,
+        ownerAuthorizationMethod:input.ownerAuthorizationMethod,ownerAuthorizationNote:input.ownerAuthorizationNote.trim(),
+        ownerAuthorizationPath:input.ownerAuthorizationPath||null,ownerAuthorizedAt:new Date(),status:'DRAFT',
+      },include});
+    });
   }
   async update(id:string,input:Partial<VehicleInput>,user:AuthUser) {
     const v=await this.detail(id,user);
