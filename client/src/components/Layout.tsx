@@ -21,7 +21,6 @@ import {
   LogOut,
   Megaphone,
   Menu,
-  Plus,
   ScrollText,
   ShieldCheck,
   Users,
@@ -46,8 +45,7 @@ const navigationGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { to: '/admin', label: 'لوحة التحكم', icon: LayoutDashboard, end: true },
       { to: '/admin/leads', label: 'العملاء المحتملون', icon: Users },
-      { to: '/admin/vehicles', label: 'قائمة المركبات', icon: Car, end: true },
-      { to: '/admin/vehicles/new', label: 'إضافة مركبات للبيع', icon: Plus, end: true },
+      { to: '/admin/vehicles', label: 'إضافة مركبات للبيع', icon: Car, end: true },
       { to: '/admin/operations', label: 'الكراج وقطع الغيار', icon: Wrench, roles: ['ADMIN', 'MANAGER'] },
       {
         to: '/admin/follow-ups',

@@ -161,7 +161,7 @@ export default function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="leads" element={<Leads />} />
                 <Route path="vehicles" element={<Vehicles />} />
-                <Route path="vehicles/new" element={<Vehicles />} />
+                <Route path="vehicles/new" element={<Navigate to="/admin/vehicles" replace />} />
                 <Route path="brokerage" element={<Brokerage />} />
                 <Route path="operations" element={<RequireRole roles={['ADMIN','MANAGER']}><Operations /></RequireRole>} />
                 <Route path="leads/:id" element={<LeadDetails />} />

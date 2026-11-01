@@ -24,7 +24,7 @@ export default function Vehicles(){
  const query=useQuery({queryKey:['vehicles'],queryFn:fetchVehicles});
  const detail=useQuery({queryKey:['vehicle',detailId],queryFn:()=>fetchVehicle(detailId),enabled:!!detailId});
  const refresh=()=>qc.invalidateQueries({queryKey:['vehicles']});
- const create=useMutation({mutationFn:createVehicle,onSuccess:async()=>{await refresh();setSuccess('حُفظت المركبة كمسودة. أرسلها للمراجعة من قائمة المركبات.');setError('');},onError:e=>setError(getApiErrorMessage(e) || 'تعذر إكمال العملية.')});
+ const create=useMutation({mutationFn:createVehicle,onSuccess:async()=>{await refresh();setSuccess('تمت إضافة المركبة ونشرها مباشرة في الموقع.');setError('');},onError:e=>setError(getApiErrorMessage(e) || 'تعذر إكمال العملية.')});
  const submit=useMutation({mutationFn:submitVehicle,onSuccess:refresh,onError:e=>setError(getApiErrorMessage(e) || 'تعذر إكمال العملية.')});
  const review=useMutation({mutationFn:({id,status,note}:{id:string;status:'APPROVED'|'REJECTED';note?:string})=>reviewVehicle(id,status,note),onSuccess:refresh,onError:e=>setError(getApiErrorMessage(e) || 'تعذر إكمال العملية.')});
  const state=useMutation({mutationFn:({id,status}:{id:string;status:'SOLD'|'ARCHIVED'})=>setVehicleState(id,status),onSuccess:refresh,onError:e=>setError(getApiErrorMessage(e) || 'تعذر إكمال العملية.')});
@@ -43,12 +43,12 @@ export default function Vehicles(){
  }
  const canModerate=user?.role==='ADMIN'||user?.role==='MANAGER';
  return <div className="space-y-6" dir="rtl">
-  <div className="flex items-start gap-3"><span className="rounded-xl bg-flame-100 p-3 text-flame-700"><Car size={22}/></span><div><h2 className="text-xl font-bold">بيع وشراء المركبات</h2><p className="mt-1 text-sm text-steel-600">إدارة المركبات المعروضة للبيع واستفسارات الشراء والبيع، مع مراجعة البيانات قبل النشر.</p></div></div>
+  <div className="flex items-start gap-3"><span className="rounded-xl bg-flame-100 p-3 text-flame-700"><Car size={22}/></span><div><h2 className="text-xl font-bold">إضافة مركبات للبيع</h2><p className="mt-1 text-sm text-steel-600">أدخل بيانات المركبة الأساسية واحفظها لتظهر مباشرة في الموقع.</p></div></div>
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}{success&&<p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{success}</p>}
   <form key={editing?.id??'new'} onSubmit={onCreate} className="space-y-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-steel-200 sm:p-6">
    <div className="flex items-start gap-3 border-b border-steel-100 pb-4">
     <span className="rounded-lg bg-flame-100 p-2.5 text-flame-700"><ClipboardList size={20}/></span>
-    <div><h3 className="font-bold text-gray-900">{editing?'تعديل بيانات المركبة':'إضافة مركبة للبيع'}</h3><p className="mt-1 text-xs leading-6 text-steel-600">أدخل المعلومات الأساسية أولاً. الحقول المعلّمة بـ * مطلوبة؛ ويمكن إضافة باقي التفاصيل لاحقاً.</p></div>
+    <div><h3 className="font-bold text-gray-900">{editing?'تعديل بيانات المركبة':'إضافة مركبة للبيع'}</h3><p className="mt-1 text-xs leading-6 text-steel-600">أدخل بيانات المركبة الأساسية؛ ستُنشر مباشرة في الموقع بعد الحفظ.</p></div>
    </div>
 
    <section className="space-y-3" aria-labelledby="vehicle-owner-heading">
@@ -80,23 +80,10 @@ export default function Vehicles(){
     <label className="flex items-start gap-2 rounded-lg bg-flame-50 p-3 text-xs leading-6 text-flame-900"><input name="authorized" type="checkbox" required defaultChecked={!!editing} className="mt-1"/> أؤكد أن صاحب المركبة وافق على عرضها، وأن طريقة التوثيق المحددة صحيحة.</label>
    </section>
 
-   <details className="rounded-lg border border-steel-200 bg-steel-50/50 p-4">
-    <summary className="cursor-pointer text-sm font-semibold text-ink-900">تفاصيل إضافية (اختيارية)</summary>
-    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-     <label className="text-sm">المسافة المقطوعة<input name="mileage" type="number" min="0" defaultValue={editing?.mileage??''} className={inputClass}/></label>
-     <label className="text-sm">ناقل الحركة<input name="transmission" defaultValue={editing?.transmission??''} className={inputClass}/></label>
-     <label className="text-sm">نوع الوقود<input name="fuelType" defaultValue={editing?.fuelType??''} className={inputClass}/></label>
-     <label className="text-sm">رقم الهيكل<input name="vin" defaultValue={editing?.vin??''} className={inputClass}/></label>
-     <label className="text-sm">العملة<input name="currency" defaultValue={editing?.currency??'SYP'} maxLength={3} className={inputClass}/></label>
-     <label className="text-sm">مرجع مستند التفويض<input name="authorizationPath" placeholder="uploads/vehicles/authorization.pdf" defaultValue={editing?.ownerAuthorizationPath??''} className={inputClass}/></label>
-     <label className="text-sm sm:col-span-2 lg:col-span-3">وصف المركبة<textarea name="description" maxLength={3000} rows={3} defaultValue={editing?.description??''} className={inputClass} placeholder="الحالة أو المواصفات الإضافية"/></label>
-    </div>
-   </details>
-
    <div className="flex flex-wrap items-center gap-3 border-t border-steel-100 pt-4">
-    <button disabled={saving} className="btn-flame"><ShieldCheck size={16}/>{saving?'جارٍ الحفظ…':editing?'حفظ التعديلات':'حفظ المركبة كمسودة'}</button>
+    <button disabled={saving} className="btn-flame"><ShieldCheck size={16}/>{saving?'جارٍ الحفظ…':editing?'حفظ التعديلات':'حفظ ونشر المركبة'}</button>
     {editing&&<button type="button" onClick={()=>{setEditing(null);setMediaPaths([]);setImageFiles([]);setMakeSelection('');}} className="rounded-lg border px-4 py-2 text-sm">إلغاء</button>}
-    <span className="text-xs text-steel-500">بعد الحفظ، أرسل الإعلان للمراجعة من قائمة المركبات.</span>
+    {!editing&&<span className="text-xs text-steel-500">ستظهر المركبة مباشرة في صفحة المركبات بالموقع.</span>}
    </div>
   </form>
   <section className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-steel-200"><div className="border-b p-4 font-bold">المركبات المسجلة ({query.data?.total??0})</div>{query.isLoading?<p className="p-5">جارٍ التحميل…</p>:query.isError?<p role="alert" className="p-5 text-red-700">تعذّر تحميل المركبات. أعد المحاولة.</p>:!query.data?.items.length?<p className="p-5 text-sm text-steel-500">لا توجد مركبات مسجلة بعد. ابدأ بإضافة أول مركبة من النموذج أعلاه.</p>:<div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead className="bg-steel-50 text-xs"><tr><th className="p-3">المركبة</th><th className="p-3">الحالة</th><th className="p-3">الإجراءات</th></tr></thead><tbody>{query.data.items.map(v=><tr key={v.id} className="border-t"><td className="p-3 font-semibold">{v.make} {v.model} {v.year}<small className="block text-steel-500">{Number(v.askingPrice).toLocaleString()} {v.currency}</small></td><td className="p-3"><span className={`rounded-full px-2 py-1 text-xs ${statusClass[v.status]}`}>{labels[v.status]}</span>{v.moderationNote&&<small className="block text-red-700">{v.moderationNote}</small>}</td><td className="p-3"><div className="flex flex-wrap gap-2"><button className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs" onClick={()=>setDetailId(v.id)}><Eye size={13}/>التفاصيل</button>{['DRAFT','REJECTED'].includes(v.status)&&<><button className="rounded border px-2 py-1 text-xs" onClick={()=>startEditing(v)}>تعديل</button><button className="inline-flex items-center gap-1 rounded bg-ink-900 px-2.5 py-1.5 text-xs text-white" onClick={()=>submit.mutate(v.id)}><Send size={13}/>إرسال للمراجعة</button></>}{canModerate&&v.status==='PENDING'&&<><button aria-label="اعتماد الإعلان" className="rounded bg-green-700 px-2 py-1 text-xs text-white" onClick={()=>review.mutate({id:v.id,status:'APPROVED'})}><BadgeCheck size={14}/></button><button className="rounded bg-red-700 px-2 py-1 text-xs text-white" onClick={()=>review.mutate({id:v.id,status:'REJECTED',note:window.prompt('سبب الرفض')||''})}>رفض</button></>}{canModerate&&v.status==='APPROVED'&&<><button className="rounded bg-blue-700 px-2 py-1 text-xs text-white" onClick={()=>state.mutate({id:v.id,status:'SOLD'})}>مباع</button><button className="rounded bg-gray-600 px-2 py-1 text-xs text-white" onClick={()=>state.mutate({id:v.id,status:'ARCHIVED'})}>أرشفة</button></>}</div></td></tr>)}</tbody></table></div>}</section>

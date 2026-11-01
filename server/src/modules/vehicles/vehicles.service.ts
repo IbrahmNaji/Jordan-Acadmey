@@ -68,7 +68,7 @@ export class VehiclesService {
         city:input.city.trim(),description:input.description?.trim()||null,askingPrice:input.askingPrice,currency:input.currency||'SYP',
         isPriceNegotiable:input.isPriceNegotiable??false,conditionVerifiedAt:null,inspectionReference:null,mediaPaths:input.mediaPaths,
         ownerAuthorizationMethod:input.ownerAuthorizationMethod,ownerAuthorizationNote:input.ownerAuthorizationNote.trim(),
-        ownerAuthorizationPath:input.ownerAuthorizationPath||null,ownerAuthorizedAt:new Date(),status:'DRAFT',
+        ownerAuthorizationPath:input.ownerAuthorizationPath||null,ownerAuthorizedAt:new Date(),status:'APPROVED',publishedAt:new Date(),
       },include});
     });
   }
