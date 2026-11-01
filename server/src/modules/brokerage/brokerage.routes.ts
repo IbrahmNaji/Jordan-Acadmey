@@ -23,6 +23,9 @@ const dealInclude = {
   viewings: { orderBy: { scheduledAt: 'desc' as const } },
   commissions: { include: { payments: { orderBy: { paidAt: 'desc' as const } } } },
 };
+function protectSeller<T extends { seller: { id: string; fullName: string; phone: string | null } }>(deal: T, user: NonNullable<Express.Request['user']>) {
+  return hasPermission(user.role, 'vehicles:contacts') ? deal : { ...deal, seller: { id: deal.seller.id, fullName: 'بيانات البائع محمية', phone: null } };
+}
 async function dealOr404(id: string, user: NonNullable<Express.Request['user']>) {
   const deal = await prisma.brokerageDeal.findFirst({ where: { id, ...scope(user) }, include: dealInclude });
   if (!deal) throw new AppError(404, 'DEAL_NOT_FOUND');
@@ -38,7 +41,7 @@ router.get('/deal-options', requirePermission('deals:write'), asyncHandler(async
   const q = z.object({ search: z.string().trim().max(100).default('') }).parse(req.query);
   const assignment = req.user!.role === 'AGENT' ? req.user!.id : undefined;
   const [listings, customers] = await Promise.all([
-    prisma.vehicleListing.findMany({ where: { status: 'APPROVED', ...(assignment && { assignedToId: assignment }) }, select: { id: true, make: true, model: true, year: true, ownerCustomerId: true, owner: { select: { fullName: true } } }, orderBy: { publishedAt: 'desc' }, take: 100 }),
+    prisma.vehicleListing.findMany({ where: { status: 'APPROVED', ...(assignment && { assignedToId: assignment }) }, select: { id: true, make: true, model: true, year: true, ownerCustomerId: true }, orderBy: { publishedAt: 'desc' }, take: 100 }),
     prisma.customer.findMany({ where: { archivedAt: null, ...(q.search && { OR: [{ fullName: { contains: q.search, mode: 'insensitive' } }, { phone: { contains: q.search } }] }), ...(assignment && { leads: { some: { assignedToId: assignment } } }) }, select: { id: true, fullName: true, phone: true }, orderBy: { fullName: 'asc' }, take: 50 }),
   ]);
   res.json({ listings, customers });
@@ -48,7 +51,7 @@ router.get('/deals', requirePermission('deals:read'), asyncHandler(async (req, r
   const q = z.object({ status: z.nativeEnum(BrokerageDealStatus).optional(), search: z.string().trim().max(100).optional(), page: z.coerce.number().int().min(1).max(10_000).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(25) }).parse(req.query);
   const where: Prisma.BrokerageDealWhereInput = { ...scope(req.user!), ...(q.status && { status: q.status }), ...(q.search && { OR: [{ listing: { make: { contains: q.search, mode: 'insensitive' } } }, { listing: { model: { contains: q.search, mode: 'insensitive' } } }, { buyer: { fullName: { contains: q.search, mode: 'insensitive' } } }, { seller: { fullName: { contains: q.search, mode: 'insensitive' } } }] }) };
   const [items, total] = await Promise.all([prisma.brokerageDeal.findMany({ where, include: dealInclude, orderBy: { updatedAt: 'desc' }, skip: (q.page - 1) * q.pageSize, take: q.pageSize }), prisma.brokerageDeal.count({ where })]);
-  res.json({ items: items.map(item => hideFinancials(item, req.user!)), total, page: q.page, pageSize: q.pageSize });
+  res.json({ items: items.map(item => hideFinancials(protectSeller(item, req.user!), req.user!)), total, page: q.page, pageSize: q.pageSize });
 }));
 
 router.post('/deals', requirePermission('deals:write'), validate({ body: z.object({ listingId: uuid, buyerCustomerId: uuid, expectedAmount: money.optional(), currency: z.string().trim().length(3).transform(v => v.toUpperCase()).default('SYP'), note: z.string().trim().max(1000).optional() }).strict() }), asyncHandler(async (req, res) => {
@@ -63,10 +66,10 @@ router.post('/deals', requirePermission('deals:write'), validate({ body: z.objec
     return tx.brokerageDeal.findUniqueOrThrow({ where: { id: created.id }, include: dealInclude });
   });
   await recordAudit({ actor: req.user, action: 'brokerage.deal.create', entityType: 'BrokerageDeal', entityId: deal.id, summary: 'إنشاء صفقة وساطة', metadata: { listingId: listing.id }, ip: requestIp(req) });
-  res.status(201).json(deal);
+  res.status(201).json(protectSeller(deal, req.user!));
 }));
 
-router.get('/deals/:id', requirePermission('deals:read'), asyncHandler(async (req, res) => { res.json(hideFinancials(await dealOr404(uuid.parse(req.params.id), req.user!), req.user!)); }));
+router.get('/deals/:id', requirePermission('deals:read'), asyncHandler(async (req, res) => { res.json(hideFinancials(protectSeller(await dealOr404(uuid.parse(req.params.id), req.user!), req.user!), req.user!)); }));
 
 const transitions: Record<BrokerageDealStatus, BrokerageDealStatus[]> = {
   NEW_INQUIRY: ['CONTACTED', 'QUALIFIED', 'LOST', 'CANCELLED'], CONTACTED: ['QUALIFIED', 'VIEWING_SCHEDULED', 'NEGOTIATION', 'LOST', 'CANCELLED'],
@@ -88,7 +91,7 @@ router.patch('/deals/:id/status', requirePermission('deals:write'), validate({ b
     return tx.brokerageDeal.findUniqueOrThrow({ where: { id: deal.id }, include: dealInclude });
   });
   await recordAudit({ actor: req.user, action: 'brokerage.deal.status', entityType: 'BrokerageDeal', entityId: id, summary: `تحديث حالة الصفقة إلى ${body.status}`, metadata: { from: current.status, to: body.status }, ip: requestIp(req) });
-  res.json(hideFinancials(updated, req.user!));
+  res.json(hideFinancials(protectSeller(updated, req.user!), req.user!));
 }));
 
 router.post('/deals/:id/viewings', requirePermission('deals:write'), validate({ body: z.object({ scheduledAt: z.string().datetime(), location: z.string().trim().max(250).optional(), notes: z.string().trim().max(1000).optional() }).strict() }), asyncHandler(async (req, res) => {

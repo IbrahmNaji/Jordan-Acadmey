@@ -2,12 +2,12 @@ import { Prisma, VehicleListingStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middleware/errorHandler';
 import type { AuthUser } from '../../middleware/auth';
+import { hasPermission } from '../../config/permissions';
 import { notifyRoles } from '../../utils/notifications';
 import { createCustomerForPerson } from '../../utils/customer';
 import { INQUIRY_CONSENT_PURPOSE, CONSENT_VERSION } from '../../config/consent';
 
 const include = {
-  owner: { select: { id: true, fullName: true, phone: true, city: true } },
   assignedTo: { select: { id: true, fullName: true } },
   reviewedBy: { select: { id: true, fullName: true } },
 } satisfies Prisma.VehicleListingInclude;
@@ -37,6 +37,10 @@ export class VehiclesService {
   async detail(id: string, user: AuthUser) {
     const item = await prisma.vehicleListing.findFirst({ where: { id, ...scope(user) }, include });
     if (!item) throw new AppError(404,'VEHICLE_NOT_FOUND');
+    if (hasPermission(user.role, 'vehicles:contacts')) {
+      const owner = await prisma.customer.findUnique({ where: { id: item.ownerCustomerId }, select: { id: true, fullName: true, phone: true, email: true, city: true, contacts: { select: { type: true, value: true, label: true, isPrimary: true } } } });
+      return { ...item, owner };
+    }
     return item;
   }
   async owners(user: AuthUser, q: string) {

@@ -9,7 +9,7 @@ export interface BrokerageDeal {
   history:Array<{id:string;from:DealStatus|null;to:DealStatus;reason?:string|null;createdAt:string}>;
   viewings:Array<{id:string;scheduledAt:string;status:string;location?:string|null}>;
 }
-export interface DealOptions { listings:Array<{id:string;make:string;model:string;year:number;ownerCustomerId:string;owner:{fullName:string}}>; customers:Array<{id:string;fullName:string;phone?:string|null}> }
+export interface DealOptions { listings:Array<{id:string;make:string;model:string;year:number;ownerCustomerId:string}>; customers:Array<{id:string;fullName:string;phone?:string|null}> }
 export async function fetchBrokerageDeals(){return (await api.get<{items:BrokerageDeal[];total:number}>('/brokerage/deals')).data;}
 export async function fetchDealOptions(search=''){return (await api.get<DealOptions>('/brokerage/deal-options',{params:{search}})).data;}
 export async function createBrokerageDeal(input:{listingId:string;buyerCustomerId:string;expectedAmount?:number;currency:string}){return (await api.post('/brokerage/deals',input)).data;}

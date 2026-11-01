@@ -7,6 +7,7 @@ import {
   INQUIRY_CONSENT_PURPOSE,
 } from '../../config/consent';
 import { notifyRoles } from '../../utils/notifications';
+import { publicCourses } from '../../content/courses';
 
 const WEBSITE_SOURCE = 'الموقع الإلكتروني';
 
@@ -51,11 +52,13 @@ interface InquiryInput {
 
 export class PublicService {
   async listCourses() {
-    return prisma.course.findMany({
+    const items = await prisma.course.findMany({
       where: { status: 'PUBLISHED' },
       select: PUBLIC_COURSE_SELECT,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
+    // Fresh deployments may not have run the optional course seed yet.
+    return items.length ? items : publicCourses.map(({ order: _order, ...course }) => course);
   }
 
   async getCourse(slug: string) {
@@ -75,7 +78,19 @@ export class PublicService {
         },
       },
     });
-    if (!course) return null;
+    if (!course) {
+      const fallback = publicCourses.find((item) => item.slug === slug);
+      if (!fallback) return null;
+      const { order: _order, ...publicCourse } = fallback;
+      return {
+        ...publicCourse,
+        instructor: null,
+        related: publicCourses
+          .filter((item) => item.slug !== slug)
+          .slice(0, 3)
+          .map(({ order: _relatedOrder, ...item }) => item),
+      };
+    }
     const related = await prisma.course.findMany({
       where: { status: 'PUBLISHED', slug: { not: slug } },
       select: PUBLIC_COURSE_SELECT,

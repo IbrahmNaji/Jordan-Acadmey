@@ -35,6 +35,7 @@ export function toWhatsAppLink(rawNumber: string, message?: string) {
 export const mainNavigation = [
   { to: '/', label: 'الرئيسية' },
   { to: '/courses', label: 'الأكاديمية' },
+  { to: '/about', label: 'من نحن' },
   { to: '/courses#instructors', label: 'مدرّبونا' },
   { to: '/marketplace', label: 'بيع وشراء المركبات' },
   { to: '/workshop', label: 'الورشة' },

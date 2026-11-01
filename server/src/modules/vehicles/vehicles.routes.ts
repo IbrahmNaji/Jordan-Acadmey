@@ -19,7 +19,7 @@ const shape={
  ownerAuthorizationNote:z.string().trim().min(8).max(1000),ownerAuthorizationPath:z.string().trim().max(260).optional(),
 };
 const create=z.object(shape).strict();const update=z.object(shape).partial().omit({ownerAuthorized:true}).strict();
-router.get('/owners',requirePermission('vehicles:write'),asyncHandler(async(req,res)=>{const q=z.object({q:z.string().trim().max(100).default('')}).parse(req.query);res.json(await service.owners(req.user!,q.q))}));
+router.get('/owners',requirePermission('vehicles:write','vehicles:contacts'),asyncHandler(async(req,res)=>{const q=z.object({q:z.string().trim().max(100).default('')}).parse(req.query);res.json(await service.owners(req.user!,q.q))}));
 router.get('/',requirePermission('vehicles:read'),asyncHandler(async(req,res)=>{const q=z.object({status:z.nativeEnum(VehicleListingStatus).optional(),search:z.string().trim().max(100).optional(),page:z.coerce.number().int().min(1).default(1),pageSize:z.coerce.number().int().min(1).max(100).default(25)}).parse(req.query);res.json(await service.list(req.user!,q))}));
 router.get('/:id',requirePermission('vehicles:read'),asyncHandler(async(req,res)=>res.json(await service.detail(uuid.parse(req.params.id),req.user!))));
 router.post('/',requirePermission('vehicles:write'),validate({body:create}),asyncHandler(async(req,res)=>{const item=await service.create(req.body,req.user!);await recordAudit({actor:req.user,action:'vehicle.create',entityType:'VehicleListing',entityId:item.id,summary:'إنشاء مسودة إعلان مركبة',ip:requestIp(req)});res.status(201).json(item)}));
