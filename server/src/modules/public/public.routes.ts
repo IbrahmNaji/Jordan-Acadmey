@@ -53,6 +53,15 @@ const inquirySchema = z.object({
 });
 
 router.get('/vehicles', asyncHandler(async (_req, res) => { res.json({ items: await vehicles.publicList() }); }));
+router.get('/parts-listings', asyncHandler(async (_req, res) => {
+  const items = await prisma.sparePartListing.findMany({
+    where: { status: 'PUBLISHED', publishedAt: { not: null } },
+    select: { id: true, partName: true, partNumber: true, vehicleMake: true, vehicleModel: true, vehicleYear: true, description: true, price: true, currency: true, mediaPaths: true, publishedAt: true },
+    orderBy: { publishedAt: 'desc' },
+    take: 100,
+  });
+  res.json({ items });
+}));
 router.get('/vehicles/:id', asyncHandler(async (req, res) => {
   const item = await vehicles.publicDetail(req.params.id);
   if (!item) throw new AppError(404, 'VEHICLE_NOT_FOUND');

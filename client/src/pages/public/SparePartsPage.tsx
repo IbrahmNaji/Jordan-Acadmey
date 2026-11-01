@@ -1,8 +1,11 @@
 import { ArrowLeft, BadgeCheck, ClipboardList, SearchCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import PageHero from '../../components/public/PageHero';
 import PageMeta from '../../components/public/PageMeta';
 import BusinessRequestForm from '../../components/public/BusinessRequestForm';
+import { fetchPublicSparePartListings } from '../../api/public';
+import { resolveMediaUrl } from '../../api/media';
 
 const steps = [
   {
@@ -26,6 +29,7 @@ const steps = [
 ];
 
 export default function SparePartsPage() {
+  const listings = useQuery({ queryKey: ['public-parts-listings'], queryFn: fetchPublicSparePartListings });
   return (
     <>
       <PageMeta
@@ -47,6 +51,15 @@ export default function SparePartsPage() {
           تواصل معنا <ArrowLeft size={16} aria-hidden="true" />
         </Link>
       </PageHero>
+
+      <section className="shell py-12 sm:py-16" aria-labelledby="parts-catalog-title">
+        <div className="mb-7">
+          <p className="eyebrow">قطع معروضة للبيع</p>
+          <h2 id="parts-catalog-title" className="mt-2 font-display text-2xl font-extrabold">القطع المنشورة</h2>
+          <p className="mt-2 text-sm text-steel-600">تواصل معنا للتحقق من التوافق والتوفر قبل الشراء.</p>
+        </div>
+        {listings.isLoading ? <p className="text-sm text-steel-500">جارٍ تحميل القطع…</p> : listings.isError ? <p role="alert" className="text-sm text-red-700">تعذر تحميل القطع حالياً.</p> : listings.data?.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{listings.data.map((item) => <article key={item.id} className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-steel-200">{item.mediaPaths[0] && <img src={resolveMediaUrl(item.mediaPaths[0])} alt={item.partName} className="aspect-video w-full object-cover"/>}<div className="space-y-2 p-4"><h3 className="font-bold">{item.partName}</h3>{item.partNumber && <p className="text-sm text-steel-600">رقم القطعة: {item.partNumber}</p>}{(item.vehicleMake || item.vehicleModel) && <p className="text-sm text-steel-600">التوافق: {[item.vehicleMake,item.vehicleModel,item.vehicleYear].filter(Boolean).join(' ')}</p>}{item.description && <p className="text-sm leading-6 text-steel-600">{item.description}</p>}<p className="font-semibold">{item.price ? `${Number(item.price).toLocaleString('ar-SY')} ${item.currency}` : 'السعر عند الاستفسار'}</p></div></article>)}</div> : <p className="rounded-lg bg-paper p-5 text-sm text-steel-600">لا توجد قطع منشورة حالياً. يمكنك إرسال طلبك وسنراجع خيارات التوريد.</p>}
+      </section>
 
       <section className="shell py-14 sm:py-20" aria-labelledby="parts-process">
         <div className="mx-auto max-w-3xl text-center">

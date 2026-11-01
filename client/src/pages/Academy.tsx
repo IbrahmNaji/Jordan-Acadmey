@@ -303,7 +303,7 @@ function CoursesTab({
           onClick={onNew}
           className="inline-flex items-center gap-1.5 rounded-lg bg-ink-900 px-3 py-2 text-xs font-semibold text-white hover:bg-ink-800"
         >
-          <Plus size={14} /> دورة جديدة
+          <Plus size={14} /> إضافة دورة مع تفاصيلها
         </button>
       </div>
 
@@ -485,7 +485,7 @@ function CourseModal({
 
   return (
     <ModalShell
-      title={courseId ? 'تعديل الدورة' : 'دورة جديدة'}
+      title={courseId ? 'تعديل الدورة وتفاصيلها' : 'إضافة دورة وتفاصيلها'}
       onClose={onClose}
     >
       {courseId && detailQuery.isLoading ? (
@@ -498,6 +498,8 @@ function CourseModal({
         </p>
       ) : (
         <form onSubmit={submit} className="space-y-4">
+          {!courseId && <p className="text-sm leading-6 text-gray-600">أدخل بيانات الدورة ووصفها ومتطلباتها لتظهر للزوار في صفحة الدورات.</p>}
+          <h3 className="border-b border-gray-100 pb-2 text-sm font-bold text-gray-800">تفاصيل الدورة</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="عنوان الدورة *">
               <input

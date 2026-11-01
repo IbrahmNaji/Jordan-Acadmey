@@ -32,6 +32,11 @@ router.post('/instructors', authenticate, requirePermission('courses:write'), up
   res.status(201).json({ url: `/media/${asset.id}` });
 }));
 
+router.post('/parts', authenticate, requirePermission('parts:write'), uploadImage, asyncHandler(async (req, res) => {
+  const asset = await saveImage(req.body, req.headers['content-type'], 'SPARE_PART_IMAGE', req.user!.id);
+  res.status(201).json({ url: `/media/${asset.id}` });
+}));
+
 async function saveImage(body: unknown, rawType: string | undefined, purpose: MediaPurpose, userId: string) {
   if (!Buffer.isBuffer(body) || !body.length) throw new AppError(400, 'IMAGE_REQUIRED');
   const mimeType = rawType?.split(';', 1)[0]?.trim().toLowerCase();

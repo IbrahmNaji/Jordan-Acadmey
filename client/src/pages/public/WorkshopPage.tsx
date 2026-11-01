@@ -32,6 +32,11 @@ const workshopServices = [
     title: 'فحص المركبات',
     text: 'استقبال طلبات فحص المركبات وتوضيح نطاق الفحص وموعده قبل تأكيد الطلب.',
   },
+  {
+    icon: Wrench,
+    title: 'صيانة ميكانيكية وكهربائية وهايبرد',
+    text: 'استقبل طلب صيانة للأعطال الميكانيكية أو الكهربائية أو أنظمة المركبات الهجينة، ويُراجع الفريق الحالة قبل تحديد نطاق العمل.',
+  },
 ];
 
 const approach = [
@@ -74,16 +79,16 @@ export default function WorkshopPage() {
   return (
     <>
       <PageMeta
-        title="الورشة وبيئة التدريب"
+        title="الكراج وبيئة التدريب"
         description="كيف يبدو التدريب العملي في الأكاديمية: فهم السؤال، القياس والتحقق، وربط النتيجة بسبب العطل."
         image="/images/workshop/workshop-wide.webp"
       />
       <PageHero
-        eyebrow="الورشة"
+        eyebrow="الكراج"
         title="مكان يتعلّم فيه الفهم قبل الأدوات."
-        description="التدريب يحدث في سياق قريب من عمل الورشة: فحص، قياس، تجربة، ومناقشة النتيجة. لا نعرض الورشة كمسرح للعرض، بل كمساحة لاتخاذ القرار."
+        description="التدريب العملي وخدمات الكراج يجمعهما الفحص والقياس والتحقق؛ ونوضح نطاق كل خدمة قبل اعتمادها."
         image="/images/workshop/workshop-wide.webp"
-        breadcrumb={[{ label: 'الورشة' }]}
+        breadcrumb={[{ label: 'الكراج' }]}
       >
         <div className="flex flex-wrap gap-3">
           <Link to="/courses" className="btn-flame">
@@ -91,7 +96,7 @@ export default function WorkshopPage() {
             <ArrowLeft size={16} aria-hidden="true" />
           </Link>
           <Link to="/contact" className="btn-outline-light">
-            استفسر عن الورشة
+            استفسر عن الكراج
           </Link>
         </div>
       </PageHero>
@@ -103,10 +108,10 @@ export default function WorkshopPage() {
         <div className="shell">
           <SectionHeading
             eyebrow="خدمات نقدمها"
-            title={<span id="workshop-services-title">خدمات الورشة</span>}
-            description="إلى جانب بيئة التدريب، يمكنك التواصل معنا لطلب خدمات الورشة والاستفسار عن تفاصيلها وشروطها."
+            title={<span id="workshop-services-title">خدمات الكراج</span>}
+            description="اطلب فحص المركبة أو استفسر عن الكفالات والصيانة الميكانيكية والكهربائية والهايبرد وخدمات ما بعد البيع."
           />
-          <div className="mt-9 grid gap-4 md:grid-cols-3">
+          <div className="mt-9 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {workshopServices.map(({ icon: Icon, title, text }) => (
               <article
                 key={title}
@@ -128,7 +133,7 @@ export default function WorkshopPage() {
       <section className="bg-paper py-16 lg:py-24">
         <div className="shell">
           <SectionHeading
-            eyebrow="منهج الورشة"
+            eyebrow="منهج التدريب العملي"
             title={
               <>
                 التدريب ليس عرضاً.
@@ -284,14 +289,14 @@ export default function WorkshopPage() {
         <div className="shell">
           <SectionHeading
             eyebrow="لقطات من بيئة التدريب"
-            title="تفاصيل تصنع سياق الورشة."
+            title="تفاصيل تصنع سياق التدريب العملي."
             description="أدوات، رافعة، وجهاز فحص. الصور توضيحية لبيئة تدريب السيارات وليست للمنشأة الفعلية."
             action={
               <Link
                 to="/contact"
                 className="hidden items-center gap-2 border-b border-ink-900/30 pb-1 font-display text-xs font-bold text-ink-900 transition-colors hover:border-flame-500 hover:text-flame-700 sm:inline-flex"
               >
-                اسأل عن الورشة
+                اسأل عن الكراج
                 <ArrowLeft size={15} aria-hidden="true" />
               </Link>
             }

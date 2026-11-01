@@ -7,6 +7,7 @@ import type {
   PublicCourseDetail,
   PublicInstructor,
 } from '../types/public';
+import type { SparePartListing } from './parts';
 
 export const publicApi = axios.create({
   baseURL: API_BASE,
@@ -25,6 +26,11 @@ export async function fetchPublicInstructors(): Promise<PublicInstructor[]> {
   const { data } = await publicApi.get<{ items: PublicInstructor[] }>(
     '/public/instructors',
   );
+  return data.items;
+}
+
+export async function fetchPublicSparePartListings(): Promise<SparePartListing[]> {
+  const { data } = await publicApi.get<{ items: SparePartListing[] }>('/public/parts-listings');
   return data.items;
 }
 

@@ -30,8 +30,8 @@ const companyLines = [
   {
     icon: Wrench,
     href: '/workshop',
-    title: 'الورشة',
-    status: 'خدمات الورشة',
+    title: 'الكراج',
+    status: 'خدمات الكراج',
     text: 'استفسر عن الفحص والصيانة والخدمات الفنية للمركبات.',
   },
   {
@@ -127,7 +127,7 @@ function Hero() {
       <div className="shell relative flex min-h-[640px] flex-col justify-center pb-20 pt-20 lg:min-h-[calc(100svh-108px)] lg:py-28">
         <div className="max-w-3xl">
           <p className="eyebrow animate-fade-up text-flame-400">
-            الأكاديمية · المركبات · الورشة · قطع الغيار
+            الأكاديمية · المركبات · الكراج · قطع الغيار
           </p>
 
           <h1 className="mt-6 animate-fade-up font-display text-[clamp(2.7rem,6.4vw,4.8rem)] font-black leading-[1.1] [animation-delay:120ms]">
@@ -137,7 +137,7 @@ function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl animate-fade-up text-[15px] leading-8 text-steel-300 [animation-delay:240ms] sm:text-base">
-            تدريب مهني، بيع وشراء مركبات، خدمات الورشة، وقطع غيار. أربعة أقسام
+            تدريب مهني، بيع وشراء مركبات، خدمات الكراج، وقطع غيار. أربعة أقسام
             متكاملة تحت منصة واحدة، اختر منها ما تبحث عنه.
           </p>
 
@@ -155,7 +155,7 @@ function Hero() {
             {[
               'أكاديمية تدريب سيارات',
               'بيع وشراء مركبات',
-              'ورشة وقطع غيار',
+              'الكراج وقطع الغيار',
             ].map((item) => (
               <li key={item} className="flex items-center gap-2">
                 <Check
@@ -205,7 +205,7 @@ function FinalCta() {
             كيف نساعدك في عالم السيارات؟
           </h2>
           <p className="mt-5 max-w-xl text-[15px] leading-8 text-steel-300">
-            أخبرنا إن كنت تبحث عن تدريب، أو مركبة، أو خدمة للورشة، أو قطعة غيار.
+            أخبرنا إن كنت تبحث عن تدريب، أو مركبة، أو خدمة للكراج، أو قطعة غيار.
             فريقنا يساعدك في الوصول إلى القسم المناسب.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
