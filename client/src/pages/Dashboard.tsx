@@ -80,11 +80,14 @@ export default function Dashboard() {
   const maxSource = Math.max(1, ...stats.bySource.map((s) => s.count));
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">لوحة التحكم</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          نظرة سريعة على حركة الأكاديمية والمتابعات اليوم.
+    <div className="space-y-6">
+      <div className="relative isolate overflow-hidden rounded-2xl bg-gradient-to-l from-ink-950 via-ink-900 to-ink-800 px-5 py-6 text-white shadow-lift sm:px-7 sm:py-8">
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-grid-dark opacity-60" />
+        <div aria-hidden="true" className="absolute -left-12 -top-16 -z-10 h-48 w-48 rounded-full border border-white/10" />
+        <p className="flex items-center gap-2 text-xs font-bold text-flame-300"><span className="h-1.5 w-1.5 rounded-full bg-flame-400"/> مركز المتابعة</p>
+        <h1 className="mt-3 text-2xl font-extrabold sm:text-3xl">لوحة التحكم</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-steel-300">
+          نظرة سريعة على حركة الأكاديمية والاستفسارات والمتابعات المستحقة.
         </p>
       </div>
 
@@ -93,19 +96,19 @@ export default function Dashboard() {
           <Link
             key={label}
             to={to}
-            className="group rounded-xl bg-white p-5 ring-1 ring-gray-200 transition-shadow hover:shadow-sm"
+            className="admin-stat group"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm text-gray-500">{label}</p>
-                <p className="mt-2 truncate text-2xl font-bold tabular-nums text-gray-900">
+                <p className="mt-2 truncate text-2xl font-extrabold tabular-nums text-ink-900 sm:text-3xl">
                   {value}
                 </p>
                 <p className="mt-1 text-[11px] text-flame-700 opacity-0 transition-opacity group-hover:opacity-100">
                   {hint}
                 </p>
               </div>
-              <span className={clsx('rounded-full p-3', tone)}>
+              <span className={clsx('rounded-xl p-3 ring-1 ring-black/[0.03]', tone)}>
                 <Icon size={20} />
               </span>
             </div>
@@ -113,8 +116,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl bg-white p-5 ring-1 ring-gray-200">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="admin-panel p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-gray-900">
               الاستفسارات حسب الحالة
@@ -156,7 +159,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-xl bg-white p-5 ring-1 ring-gray-200">
+        <div className="admin-panel p-5 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-gray-900">
               الاستفسارات حسب المصدر
@@ -218,7 +221,7 @@ function FollowUpsSection({
   error: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-white ring-1 ring-gray-200">
+    <div className="admin-panel overflow-hidden">
       <div className="flex flex-col gap-1 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <CalendarClock size={18} className="text-orange-500" />

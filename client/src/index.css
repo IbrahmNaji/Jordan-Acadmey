@@ -7,10 +7,18 @@
     direction: rtl;
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    scrollbar-color: #8b9299 #eef0f1;
   }
   body {
-    @apply bg-paper text-ink-900 antialiased;
+    @apply bg-[#f3f4f2] text-ink-900 antialiased;
     font-family: 'Tajawal', system-ui, 'Segoe UI', sans-serif;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
   }
   h1,
   h2,
@@ -18,15 +26,38 @@
   h4 {
     @apply font-display;
   }
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  thead th {
+    background: #f7f8f8;
+    color: #626970;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  tbody tr {
+    transition: background-color 160ms ease;
+  }
+  tbody tr:hover {
+    background-color: rgba(255, 246, 229, 0.55);
+  }
   ::selection {
     @apply bg-flame-500 text-ink-950;
   }
   :focus-visible {
-    outline: 2px solid #16852b;
+    outline: 2px solid #d98b1e;
     outline-offset: 3px;
   }
   body.is-locked {
     overflow: hidden;
+  }
+  .page-transition {
+    animation: pageEnter 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes pageEnter {
+    from { opacity: 0.7; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @media (prefers-reduced-motion: reduce) {
     html {
@@ -52,7 +83,7 @@
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-flame-500 text-ink-950 hover:bg-flame-400;
+    @apply btn bg-flame-500 text-ink-950 shadow-flame transition duration-200 hover:-translate-y-0.5 hover:bg-flame-400;
   }
   .btn-secondary {
     @apply btn bg-gray-200 text-gray-800 hover:bg-gray-300;
@@ -67,7 +98,7 @@
     @apply mb-1 block text-sm font-medium text-gray-700;
   }
   .card {
-    @apply rounded-xl border border-gray-100 bg-white p-6 shadow-sm;
+    @apply rounded-2xl border border-steel-200/80 bg-white p-6 shadow-admin-card;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -75,7 +106,7 @@
 
   /* ── Public site primitives ───────────────────────────────── */
   .public-btn {
-    @apply inline-flex min-h-[48px] items-center justify-center gap-2.5 rounded-[2px] px-6 py-3 font-display text-sm font-bold transition duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2.5 rounded-lg px-6 py-3 font-display text-sm font-bold transition duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-flame {
     @apply public-btn bg-flame-500 text-ink-950 hover:bg-flame-400 shadow-flame;
@@ -87,7 +118,7 @@
     @apply public-btn border border-ink-900/20 text-ink-900 hover:border-ink-900 hover:bg-ink-900 hover:text-paper;
   }
   .public-input {
-    @apply w-full rounded-[2px] border border-steel-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-steel-600 transition focus:border-flame-500 focus:outline-none focus:ring-2 focus:ring-flame-500/20;
+    @apply w-full rounded-lg border border-steel-300 bg-white px-4 py-3 text-sm text-ink-900 placeholder:text-steel-600 transition focus:border-flame-500 focus:outline-none focus:ring-2 focus:ring-flame-500/20;
   }
   .public-label {
     @apply mb-2 block text-[13px] font-semibold text-ink-800;
@@ -131,6 +162,49 @@
     transform: none;
   }
 
+  .admin-panel {
+    @apply rounded-2xl border border-steel-200/80 bg-white shadow-admin-card;
+  }
+  .admin-stat {
+    @apply admin-panel relative isolate overflow-hidden p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-panel;
+  }
+  .admin-stat::after {
+    content: '';
+    @apply pointer-events-none absolute -left-8 -top-10 -z-10 h-28 w-28 rounded-full bg-flame-50;
+  }
+  .admin-table-wrap {
+    @apply overflow-x-auto rounded-2xl border border-steel-200 bg-white shadow-admin-card;
+  }
+  .admin-scope input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  .admin-scope select,
+  .admin-scope textarea {
+    min-height: 42px;
+    border-radius: 0.7rem;
+    border-color: #d9dfe2;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+  .admin-scope textarea {
+    min-height: 96px;
+  }
+  .admin-scope input:not([type='checkbox']):not([type='radio']):not([type='file']):focus,
+  .admin-scope select:focus,
+  .admin-scope textarea:focus {
+    border-color: #d98b1e;
+    box-shadow: 0 0 0 3px rgba(217, 139, 30, 0.14);
+    outline: none;
+  }
+  .admin-scope table th {
+    border-bottom: 1px solid #e3e6e8;
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+  }
+  .admin-scope table td {
+    border-bottom: 1px solid #eef0f1;
+  }
+  .public-card {
+    @apply overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-flame-500/40 hover:shadow-lift;
+  }
+
   .prose-academy {
     @apply text-[15px] leading-8 text-ink-800;
   }
@@ -148,5 +222,13 @@
   }
   .prose-academy a {
     @apply text-flame-700 underline underline-offset-4;
+  }
+}
+
+@layer utilities {
+  @media (prefers-reduced-motion: no-preference) {
+    .motion-enter {
+      animation: fadeUp 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
   }
 }

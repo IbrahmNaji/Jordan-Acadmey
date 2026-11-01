@@ -1,9 +1,10 @@
 import { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import SiteHeader from './SiteHeader';
 import SiteFooter from './SiteFooter';
 
 export default function PublicLayout() {
+  const location = useLocation();
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <a
@@ -14,9 +15,11 @@ export default function PublicLayout() {
       </a>
       <SiteHeader />
       <main id="main-content" className="flex-1">
-        <Suspense fallback={<PublicPageLoading />}>
-          <Outlet />
-        </Suspense>
+        <div key={location.pathname} className="page-transition">
+          <Suspense fallback={<PublicPageLoading />}>
+            <Outlet />
+          </Suspense>
+        </div>
       </main>
       <SiteFooter />
     </div>

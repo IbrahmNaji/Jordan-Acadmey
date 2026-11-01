@@ -165,7 +165,7 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen bg-admin-bg text-ink-900">
-      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col bg-admin-sidebar lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-[17rem] shrink-0 flex-col border-l border-white/[0.06] bg-admin-sidebar shadow-2xl lg:flex">
         <SidebarContent user={user} onLogout={handleLogout} />
       </aside>
 
@@ -209,13 +209,13 @@ export default function Layout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-steel-200/80 bg-white/95 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-steel-200/70 bg-white/90 backdrop-blur-xl">
           <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="rounded-md p-2 text-steel-600 transition hover:bg-ink-900/5 hover:text-ink-900 lg:hidden"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-steel-200 bg-white text-steel-600 shadow-sm transition hover:border-flame-300 hover:text-ink-900 lg:hidden"
                 aria-label="فتح قائمة التنقل"
                 aria-expanded={mobileOpen}
               >
@@ -258,11 +258,13 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+        <main className="admin-scope flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
           <div className="mx-auto w-full max-w-[1440px]">
-            <Suspense fallback={<AdminPageLoading />}>
-              <Outlet />
-            </Suspense>
+            <div key={location.pathname} className="page-transition">
+              <Suspense fallback={<AdminPageLoading />}>
+                <Outlet />
+              </Suspense>
+            </div>
           </div>
         </main>
 
@@ -323,9 +325,9 @@ function SidebarContent({
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       clsx(
-                        'relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors',
+                        'relative flex items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium transition duration-200',
                         isActive
-                          ? 'bg-white/[0.07] text-white'
+                          ? 'bg-white/[0.08] text-white shadow-inner'
                           : 'text-steel-400 hover:bg-admin-sidebarHover hover:text-white',
                       )
                     }
@@ -335,7 +337,7 @@ function SidebarContent({
                         {isActive && (
                           <span
                             aria-hidden="true"
-                            className="absolute inset-y-2 right-0 w-0.5 bg-flame-500"
+                            className="absolute inset-y-2 right-0 w-1 rounded-full bg-flame-400 shadow-flame"
                           />
                         )}
                         <Icon
