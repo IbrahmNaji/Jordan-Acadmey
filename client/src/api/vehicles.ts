@@ -25,6 +25,6 @@ export async function createVehicle(input:VehicleInput){const {data}=await api.p
 export async function updateVehicle(id:string,input:Partial<Omit<VehicleInput,'ownerAuthorized'>>){const {data}=await api.patch<VehicleListing>(`/vehicles/${id}`,input);return data;}
 export async function submitVehicle(id:string){const {data}=await api.post<VehicleListing>(`/vehicles/${id}/submit`);return data;}
 export async function reviewVehicle(id:string,status:'APPROVED'|'REJECTED',note?:string){const {data}=await api.post<VehicleListing>(`/vehicles/${id}/review`,{status,note});return data;}
-export async function setVehicleState(id:string,status:'SOLD'|'ARCHIVED'){const {data}=await api.post<VehicleListing>(`/vehicles/${id}/state`,{status});return data;}
+export async function setVehicleState(id:string,status:'SOLD'|'ARCHIVED'|'APPROVED'){const {data}=await api.post<VehicleListing>(`/vehicles/${id}/state`,{status});return data;}
 export async function fetchPublicVehicles(){const {data}=await api.get<{items:PublicVehicle[]}>('/public/vehicles');return data.items;}
 export async function submitVehicleInquiry(id:string,input:{fullName:string;phone:string;email?:string;consent:true}){await api.post(`/public/vehicles/${id}/inquiries`,input);}

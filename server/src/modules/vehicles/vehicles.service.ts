@@ -74,7 +74,6 @@ export class VehiclesService {
   }
   async update(id:string,input:Partial<VehicleInput>,user:AuthUser) {
     const v=await this.detail(id,user);
-    if(!['DRAFT','REJECTED'].includes(v.status)) throw new AppError(409,'VEHICLE_NOT_EDITABLE');
     if(input.mediaPaths&&!input.mediaPaths.every(mediaPath)) throw new AppError(400,'INVALID_MEDIA_PATH');
     if(input.ownerCustomerId && input.ownerCustomerId!==v.ownerCustomerId){const owner=await prisma.customer.findFirst({where:{id:input.ownerCustomerId,archivedAt:null,...(user.role==='AGENT'&&{leads:{some:{assignedToId:user.id}}})},select:{id:true}});if(!owner)throw new AppError(400,'INVALID_OR_OUT_OF_SCOPE_OWNER');}
     if(input.ownerAuthorizationPath && !mediaPath(input.ownerAuthorizationPath))throw new AppError(400,'INVALID_MEDIA_PATH');
@@ -91,7 +90,15 @@ export class VehiclesService {
       ...(input.ownerAuthorizationNote&&{ownerAuthorizationNote:input.ownerAuthorizationNote.trim(),ownerAuthorizedAt:new Date()}),
       ...(input.ownerAuthorizationPath!==undefined&&{ownerAuthorizationPath:input.ownerAuthorizationPath||null}),
     };
-    return prisma.vehicleListing.update({where:{id},data,include});
+    return prisma.$transaction(async(tx)=>{
+      if(input.ownerName!==undefined||input.ownerPhone!==undefined){
+        await tx.customer.update({where:{id:v.ownerCustomerId},data:{
+          ...(input.ownerName!==undefined&&{fullName:input.ownerName.trim()}),
+          ...(input.ownerPhone!==undefined&&{phone:input.ownerPhone.trim()||null}),
+        }});
+      }
+      return tx.vehicleListing.update({where:{id},data,include});
+    });
   }
   async submit(id:string,user:AuthUser) {
     const v=await this.detail(id,user);
@@ -107,11 +114,11 @@ export class VehiclesService {
     if(status==='REJECTED'&&!note?.trim()) throw new AppError(400,'REJECTION_NOTE_REQUIRED');
     return prisma.vehicleListing.update({where:{id},data:{status,moderationNote:note?.trim()||null,reviewedById:user.id,reviewedAt:new Date(),publishedAt:status==='APPROVED'?new Date():null},include});
   }
-  async close(id:string,status:'SOLD'|'ARCHIVED') {
+  async close(id:string,status:'SOLD'|'ARCHIVED'|'APPROVED') {
     const v=await prisma.vehicleListing.findUnique({where:{id}});
     if(!v) throw new AppError(404,'VEHICLE_NOT_FOUND');
-    if(v.status!=='APPROVED') throw new AppError(409,'INVALID_VEHICLE_TRANSITION');
-    return prisma.vehicleListing.update({where:{id},data:{status,soldAt:status==='SOLD'?new Date():null},include});
+    if(status==='APPROVED' ? v.status!=='SOLD' : v.status!=='APPROVED') throw new AppError(409,'INVALID_VEHICLE_TRANSITION');
+    return prisma.vehicleListing.update({where:{id},data:{status,soldAt:status==='SOLD'?new Date():null,...(status==='APPROVED'&&{publishedAt:new Date()})},include});
   }
   async publicList() {
     return prisma.vehicleListing.findMany({where:{status:'APPROVED',publishedAt:{not:null}},select:{id:true,make:true,model:true,year:true,mileage:true,transmission:true,fuelType:true,city:true,description:true,askingPrice:true,currency:true,isPriceNegotiable:true,mediaPaths:true,publishedAt:true},orderBy:{publishedAt:'desc'}});
