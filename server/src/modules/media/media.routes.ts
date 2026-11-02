@@ -18,6 +18,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', asset.mimeType);
   res.setHeader('Content-Length', asset.data.byteLength);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.send(Buffer.from(asset.data));
 }));
