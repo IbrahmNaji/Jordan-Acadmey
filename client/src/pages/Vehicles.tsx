@@ -69,6 +69,18 @@ export default function Vehicles(){
     </div>
    </section>
 
+   <details className="rounded-lg border border-steel-200 bg-steel-50/50 p-4">
+    <summary className="cursor-pointer text-sm font-semibold text-ink-900">تفاصيل إضافية (اختيارية)</summary>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+     <label className="text-sm">المسافة المقطوعة (اختياري)<input name="mileage" type="number" min="0" max="2000000" defaultValue={editing?.mileage??''} className={inputClass} placeholder="مثال: 85000 كم"/></label>
+     <label className="text-sm">ناقل الحركة (اختياري)<input name="transmission" maxLength={40} defaultValue={editing?.transmission??''} className={inputClass} placeholder="أوتوماتيك أو عادي"/></label>
+     <label className="text-sm">نوع الوقود (اختياري)<input name="fuelType" maxLength={40} defaultValue={editing?.fuelType??''} className={inputClass} placeholder="بنزين، ديزل، هايبرد…"/></label>
+     <label className="text-sm">رقم الهيكل (اختياري)<input name="vin" maxLength={40} defaultValue={editing?.vin??''} className={inputClass} placeholder="رقم الهيكل" dir="ltr"/></label>
+    </div>
+   </details>
+
+   <label className="block text-sm">وصف المركبة (اختياري)<textarea name="description" maxLength={3000} rows={4} defaultValue={editing?.description??''} className={inputClass} placeholder="أضف ملاحظات عن الحالة أو المواصفات، أو اتركه فارغاً."/></label>
+
    <section className="space-y-3 rounded-lg border border-steel-200 p-4" aria-labelledby="vehicle-images-heading">
     <div className="flex items-center justify-between gap-3"><div><h4 id="vehicle-images-heading" className="text-sm font-bold text-gray-800">صور المركبة</h4><p className="mt-1 text-xs text-steel-500">أضف حتى 12 صورة من جهازك، بصيغة JPG أو PNG أو WebP.</p></div><label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-semibold text-white hover:bg-ink-800"><ImagePlus size={16}/> اختيار الصور<input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={event=>{const selected=Array.from(event.target.files??[]);setImageFiles(current=>[...current,...selected].slice(0,Math.max(0,12-mediaPaths.length-current.length)));event.target.value='';}}/></label></div>
     {(mediaPaths.length>0||imagePreviews.length>0)&&<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">{mediaPaths.map((path,index)=><div key={`${path}-${index}`} className="relative"><img src={resolveMediaUrl(path)} alt={`صورة المركبة ${index+1}`} className="aspect-video w-full rounded-lg object-cover"/><button type="button" aria-label="إزالة الصورة" onClick={()=>setMediaPaths(paths=>paths.filter((_,i)=>i!==index))} className="absolute left-2 top-2 rounded-full bg-white p-1.5 text-red-700 shadow"><Trash2 size={14}/></button></div>)}{imagePreviews.map((src,index)=><div key={`${src}-${index}`} className="relative"><img src={src} alt={`الصورة المختارة ${index+1}`} className="aspect-video w-full rounded-lg object-cover"/><button type="button" aria-label="إزالة الصورة المختارة" onClick={()=>setImageFiles(files=>files.filter((_,i)=>i!==index))} className="absolute left-2 top-2 rounded-full bg-white p-1.5 text-red-700 shadow"><Trash2 size={14}/></button></div>)}</div>}
