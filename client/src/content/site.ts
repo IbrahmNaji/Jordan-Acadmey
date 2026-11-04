@@ -42,41 +42,6 @@ export const mainNavigation = [
   { to: '/spare-parts', label: 'قطع الغيار' },
 ];
 
-export const tracks = [
-  {
-    slug: 'mechanics',
-    number: '01',
-    title: 'ميكانيك السيارات',
-    summary: 'المحرك وناقل الحركة وأنظمة التشغيل الأساسية، من الفهم إلى التطبيق.',
-    image: '/images/courses/mechanics.webp',
-    imageAlt: 'تدريب على مكوّنات محرك السيارة',
-  },
-  {
-    slug: 'electrical',
-    number: '02',
-    title: 'كهرباء السيارات',
-    summary: 'الدوائر الكهربائية والبطارية والشحن وأعطال التيار في السيارة.',
-    image: '/images/courses/electrical.webp',
-    imageAlt: 'فحص دارة كهربائية في سيارة',
-  },
-  {
-    slug: 'diagnostics',
-    number: '03',
-    title: 'تشخيص الأعطال',
-    summary: 'قراءة البيانات وتتبّع الأعطال بأدوات التشخيص خطوة بخطوة.',
-    image: '/images/courses/diagnostics.webp',
-    imageAlt: 'جهاز تشخيص أعطال متصل بلوحة سيارة',
-  },
-  {
-    slug: 'hybrid',
-    number: '04',
-    title: 'أنظمة الهايبرد',
-    summary: 'مبادئ منظومات الهايبرد ومتطلبات السلامة عند التعامل معها.',
-    image: '/images/courses/hybrid.webp',
-    imageAlt: 'مكوّنات منظومة هايبرد داخل سيارة',
-  },
-];
-
 export const features = [
   {
     number: '01',

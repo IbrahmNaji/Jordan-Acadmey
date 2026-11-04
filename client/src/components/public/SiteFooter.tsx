@@ -14,7 +14,6 @@ import {
   mainNavigation,
   site,
   toWhatsAppLink,
-  tracks,
 } from '../../content/site';
 
 export default function SiteFooter() {
@@ -66,28 +65,12 @@ export default function SiteFooter() {
             </ul>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-5">
             <h2 className="font-display text-xs font-bold uppercase tracking-[0.12em] text-steel-500">
-              المسارات
+              الدورات والتواصل
             </h2>
-            <ul className="mt-5 space-y-3">
-              {tracks.map((track) => (
-                <li key={track.slug}>
-                  <Link
-                    to={`/courses/${track.slug}`}
-                    className="text-[13px] text-steel-300 transition-colors hover:text-flame-400"
-                  >
-                    {track.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="lg:col-span-3">
-            <h2 className="font-display text-xs font-bold uppercase tracking-[0.12em] text-steel-500">
-              تواصل معنا
-            </h2>
+            <p className="mt-5 text-[13px] leading-7 text-steel-300">تُعرض هنا الدورات المنشورة من إدارة الأكاديمية.</p>
+            <Link to="/courses" className="mt-3 inline-flex text-[13px] text-steel-300 transition-colors hover:text-flame-400">استكشف الدورات</Link>
             <div className="mt-5 space-y-3">
               {contact.phone && (
                 <a

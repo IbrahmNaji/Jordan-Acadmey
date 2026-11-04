@@ -259,6 +259,7 @@ export interface AcademyCourseSummary {
   title: string;
   shortTitle: string;
   courseType: CourseType;
+  courseTypes?: CourseType[];
   tagline: string;
   summary: string;
   image?: string | null;

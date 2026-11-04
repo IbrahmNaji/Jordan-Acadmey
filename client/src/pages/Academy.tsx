@@ -43,6 +43,7 @@ const COURSE_TYPE_LABEL: Record<CourseType, string> = {
   DIAGNOSTICS: 'تشخيص أعطال',
   HYBRID: 'هايبرد',
 };
+const COURSE_TYPES = Object.keys(COURSE_TYPE_LABEL) as CourseType[];
 
 const COURSE_STATUS_LABEL: Record<CourseStatus, string> = {
   DRAFT: 'مسودة',
@@ -345,7 +346,8 @@ function CoursesTab({
                     </p>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
-                    {COURSE_TYPE_LABEL[course.courseType]}
+                    {(course.courseTypes?.length ? course.courseTypes : [course.courseType])
+                      .map((type) => COURSE_TYPE_LABEL[type]).join('، ')}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -428,6 +430,17 @@ function CourseModal({
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selectedCourseTypes, setSelectedCourseTypes] = useState<CourseType[]>(['MECHANICS']);
+
+  useEffect(() => {
+    setSelectedCourseTypes(
+      detailQuery.data?.courseTypes?.length
+        ? detailQuery.data.courseTypes
+        : detailQuery.data?.courseType
+          ? [detailQuery.data.courseType]
+          : ['MECHANICS'],
+    );
+  }, [detailQuery.data, courseId]);
 
   if (!open) return null;
   const detail = detailQuery.data;
@@ -444,11 +457,17 @@ function CourseModal({
         .map((line) => line.trim())
         .filter(Boolean);
 
+    if (selectedCourseTypes.length === 0) {
+      setError('اختر نوع مسار واحداً على الأقل.');
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       slug: text('slug'),
       title: text('title'),
       shortTitle: text('shortTitle'),
-      courseType: text('courseType'),
+      courseType: selectedCourseTypes[0],
+      courseTypes: selectedCourseTypes,
       categoryId: nullable('categoryId'),
       instructorId: nullable('instructorId'),
       tagline: text('tagline'),
@@ -527,17 +546,34 @@ function CourseModal({
               />
             </Field>
             <Field label="نوع المسار *">
-              <select
-                name="courseType"
-                defaultValue={detail?.courseType ?? 'MECHANICS'}
-                className={inputClass}
-              >
-                {Object.entries(COURSE_TYPE_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-2 rounded-lg border border-gray-200 p-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourseTypes(
+                    selectedCourseTypes.length === COURSE_TYPES.length ? [] : COURSE_TYPES,
+                  )}
+                  className="text-xs font-semibold text-flame-700 hover:text-flame-600"
+                >
+                  {selectedCourseTypes.length === COURSE_TYPES.length ? 'إلغاء تحديد الكل' : 'اختيار كل المسارات'}
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  {COURSE_TYPES.map((value) => (
+                    <label key={value} className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedCourseTypes.includes(value)}
+                        onChange={(event) => setSelectedCourseTypes((current) =>
+                          event.target.checked
+                            ? [...current, value]
+                            : current.filter((item) => item !== value),
+                        )}
+                        className="h-4 w-4 rounded border-gray-300 text-flame-600 focus:ring-flame-500"
+                      />
+                      {COURSE_TYPE_LABEL[value]}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </Field>
             <Field label="الحالة">
               <select

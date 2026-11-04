@@ -812,6 +812,7 @@ model Course {
   title         String
   shortTitle    String
   courseType    CourseType
+  courseTypes   CourseType[]     @default([])
   categoryId    String?
   category      CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   instructorId  String?

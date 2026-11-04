@@ -14,6 +14,7 @@ import {
 import InstructorProfileCard from '../../components/public/InstructorProfileCard';
 import { usePublicCourses, usePublicInstructors } from '../../hooks/usePublic';
 import { site } from '../../content/site';
+import type { CourseType } from '../../types';
 
 const categories = [
   { value: 'ALL', label: 'كل المسارات' },
@@ -70,7 +71,7 @@ export default function CoursesPage() {
     const normalized = queryParam.trim().toLowerCase();
     return items.filter((course) => {
       const matchesCategory =
-        category === 'ALL' || course.courseType === category;
+        category === 'ALL' || (course.courseTypes?.length ? course.courseTypes : [course.courseType]).includes(category as CourseType);
       if (!matchesCategory) return false;
       if (!normalized) return true;
       const haystack = [
@@ -99,7 +100,7 @@ export default function CoursesPage() {
       <PageHero
         eyebrow="المسارات التدريبية"
         title="ابحث عن المسار الذي يبدأ منه هدفك."
-        description="أربعة مسارات في أساسيات السيارة وأنظمتها. استخدم البحث والتصنيف للوصول إلى المسار المناسب، ثم اطلب معلومات الدورة."
+        description="تصفّح الدورات المنشورة في أساسيات السيارة وأنظمتها، واستخدم البحث والتصنيف للوصول إلى الدورة المناسبة، ثم اطلب معلوماتها."
         image="/images/workshop/workshop-wide.webp"
         breadcrumb={[{ label: 'الدورات' }]}
       >

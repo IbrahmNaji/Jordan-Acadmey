@@ -29,6 +29,7 @@ const createSchema = z
     title: z.string().trim().min(2).max(160),
     shortTitle: z.string().trim().min(1).max(60),
     courseType: courseTypeEnum,
+    courseTypes: z.array(courseTypeEnum).min(1).max(4).optional(),
     categoryId: z.string().uuid().nullable().optional(),
     instructorId: z.string().uuid().nullable().optional(),
     tagline: z.string().trim().min(2).max(220),
@@ -163,6 +164,7 @@ router.post(
           title: body.title,
           shortTitle: body.shortTitle,
           courseType: body.courseType,
+          courseTypes: body.courseTypes ?? [body.courseType],
           categoryId: body.categoryId ?? null,
           instructorId: body.instructorId ?? null,
           tagline: body.tagline,
@@ -217,6 +219,10 @@ router.patch(
     if (body.title !== undefined) data.title = body.title;
     if (body.shortTitle !== undefined) data.shortTitle = body.shortTitle;
     if (body.courseType !== undefined) data.courseType = body.courseType;
+    if (body.courseTypes !== undefined) {
+      data.courseTypes = body.courseTypes;
+      data.courseType = body.courseTypes[0];
+    }
     if (body.categoryId !== undefined) {
       data.category = body.categoryId
         ? { connect: { id: body.categoryId } }

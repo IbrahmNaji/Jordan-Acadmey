@@ -5,6 +5,7 @@ export interface PublicCourse {
   title: string;
   shortTitle: string;
   courseType: CourseType;
+  courseTypes?: CourseType[];
   tagline: string;
   summary: string;
   description: string[];

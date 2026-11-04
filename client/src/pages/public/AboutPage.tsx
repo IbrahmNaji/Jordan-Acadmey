@@ -4,7 +4,7 @@ import PageMeta from '../../components/public/PageMeta';
 import PageHero from '../../components/public/PageHero';
 import SectionHeading from '../../components/public/SectionHeading';
 import Reveal from '../../components/public/Reveal';
-import { aboutValues, site, tracks } from '../../content/site';
+import { aboutValues, site } from '../../content/site';
 
 export default function AboutPage() {
   return (
@@ -138,7 +138,7 @@ export default function AboutPage() {
               <span className="text-steel-600">وحول السيارة.</span>
             </h2>
             <p className="mt-5 max-w-xl text-[14px] leading-8 text-steel-600">
-              تقع الأكاديمية في دمشق، سوريا، وتقدّم مسارات في أربع منظومات.
+              تقع الأكاديمية في دمشق، سوريا، وتعلن الدورات التدريبية المتاحة عبر الموقع.
               للتفاصيل الدقيقة حول الموقع أو الدفعة القادمة، تواصل معنا وسنوضح
               المتاح.
             </p>
@@ -146,18 +146,6 @@ export default function AboutPage() {
               <MapPin size={14} className="text-flame-700" aria-hidden="true" />
               {site.location}
             </p>
-
-            <div className="mt-8 flex flex-wrap gap-2">
-              {tracks.map((track) => (
-                <Link
-                  key={track.slug}
-                  to={`/courses/${track.slug}`}
-                  className="inline-flex items-center gap-1.5 border border-ink-900/15 px-3 py-2 text-[11px] font-semibold text-ink-800 transition-colors hover:border-flame-500 hover:text-flame-700"
-                >
-                  {track.title}
-                </Link>
-              ))}
-            </div>
 
             <div className="mt-8">
               <Link to="/contact" className="btn-flame">
