@@ -688,6 +688,7 @@ enum MediaPurpose {
   VEHICLE_IMAGE
   INSTRUCTOR_IMAGE
   SPARE_PART_IMAGE
+  COURSE_IMAGE
 }
 
 model MediaAsset {
@@ -810,9 +811,10 @@ model Course {
   id            String          @id @default(uuid())
   slug          String          @unique
   title         String
+  titleEnglish  String?
   shortTitle    String
   courseType    CourseType
-  courseTypes   CourseType[]     @default([])
+  courseTypes   String[]         @default([])
   categoryId    String?
   category      CourseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   instructorId  String?
@@ -826,6 +828,13 @@ model Course {
   note          String
   image         String
   imageAlt      String
+  gallery       String[]        @default([])
+  videos        String[]        @default([])
+  contentSections Json          @default("[]")
+  faqs          Json            @default("[]")
+  location      String?
+  duration      String?
+  registrationOpen Boolean      @default(true)
   deliveryMode  DeliveryMode    @default(ONSITE)
   price         Decimal?        @db.Decimal(12, 2)
   currency      String          @default("SYP")

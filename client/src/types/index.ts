@@ -259,7 +259,8 @@ export interface AcademyCourseSummary {
   title: string;
   shortTitle: string;
   courseType: CourseType;
-  courseTypes?: CourseType[];
+  courseTypes?: string[];
+  titleEnglish?: string | null;
   tagline: string;
   summary: string;
   image?: string | null;
@@ -270,6 +271,13 @@ export interface AcademyCourseSummary {
   price?: DecimalLike | null;
   currency: string;
   deliveryMode: DeliveryMode;
+  gallery?: string[];
+  videos?: string[];
+  contentSections?: Array<{ title: string; body: string; items: string[] }>;
+  faqs?: Array<{ question: string; answer: string }>;
+  location?: string | null;
+  duration?: string | null;
+  registrationOpen?: boolean;
   categoryId?: string | null;
   instructorId?: string | null;
   category?: { id: string; name: string } | null;

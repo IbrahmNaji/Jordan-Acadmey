@@ -6,11 +6,13 @@ import {
   GraduationCap,
   ImagePlus,
   Plus,
+  Trash2,
   Users,
 } from 'lucide-react';
 import clsx from 'clsx';
 import {
   createAcademyCourse,
+  deleteAcademyCourse,
   createBatch,
   createCategory,
   createInstructor,
@@ -144,6 +146,10 @@ export default function Academy() {
       qc.invalidateQueries({ queryKey: ['academy'] });
     },
   });
+  const deleteCourseMutation = useMutation({
+    mutationFn: deleteAcademyCourse,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['academy'] }),
+  });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['academy'] });
 
@@ -184,6 +190,8 @@ export default function Academy() {
       </div>
 
       {tab === 'courses' && (
+        <>
+        {deleteCourseMutation.isError && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">تعذر حذف الدورة. قد تكون مرتبطة بدفعات أو تسجيلات محفوظة؛ يمكنك إخفاؤها بدلاً من ذلك.</p>}
         <CoursesTab
           courses={courses}
           loading={coursesQuery.isLoading}
@@ -192,7 +200,14 @@ export default function Academy() {
           onEdit={(id) => setCourseModal({ open: true, id })}
           onStatus={(id, status) => statusMutation.mutate({ id, status })}
           statusPending={statusMutation.isPending}
+          onDelete={(course) => {
+            if (window.confirm(`هل أنت متأكد من حذف دورة «${course.title}»؟ لا يمكن حذف دورة لها دفعات أو تسجيلات محفوظة.`)) {
+              deleteCourseMutation.mutate(course.id);
+            }
+          }}
+          deletePending={deleteCourseMutation.isPending}
         />
+        </>
       )}
 
       {tab === 'batches' && (
@@ -283,6 +298,8 @@ function CoursesTab({
   onEdit,
   onStatus,
   statusPending,
+  onDelete,
+  deletePending,
 }: {
   courses: AcademyCourseSummary[];
   loading: boolean;
@@ -291,6 +308,8 @@ function CoursesTab({
   onEdit: (id: string) => void;
   onStatus: (id: string, status: CourseStatus) => void;
   statusPending: boolean;
+  onDelete: (course: AcademyCourseSummary) => void;
+  deletePending: boolean;
 }) {
   return (
     <section className="rounded-xl bg-white ring-1 ring-gray-200">
@@ -330,6 +349,7 @@ function CoursesTab({
                 <th className="px-4 py-2.5 font-medium">الدورة</th>
                 <th className="px-4 py-2.5 font-medium">النوع</th>
                 <th className="px-4 py-2.5 font-medium">الحالة</th>
+                <th className="px-4 py-2.5 font-medium">التسجيل</th>
                 <th className="px-4 py-2.5 font-medium">الدفعات</th>
                 <th className="px-4 py-2.5 font-medium">المسجلون</th>
                 <th className="px-4 py-2.5 font-medium">السعر</th>
@@ -347,7 +367,7 @@ function CoursesTab({
                   </td>
                   <td className="px-4 py-3 text-gray-700">
                     {(course.courseTypes?.length ? course.courseTypes : [course.courseType])
-                      .map((type) => COURSE_TYPE_LABEL[type]).join('، ')}
+                      .map((type) => COURSE_TYPE_LABEL[type as CourseType] ?? type).join('، ')}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -357,6 +377,11 @@ function CoursesTab({
                       )}
                     >
                       {COURSE_STATUS_LABEL[course.status]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ring-1', course.registrationOpen === false ? 'bg-amber-50 text-amber-800 ring-amber-200' : 'bg-green-50 text-green-700 ring-green-200')}>
+                      {course.registrationOpen === false ? 'مغلق' : 'مفتوح'}
                     </span>
                   </td>
                   <td className="px-4 py-3 tabular-nums text-gray-700">
@@ -396,6 +421,14 @@ function CoursesTab({
                           إرجاع لمسودة
                         </button>
                       )}
+                      <button
+                        type="button"
+                        disabled={deletePending}
+                        onClick={() => onDelete(course)}
+                        className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 size={12} /> حذف
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -430,9 +463,15 @@ function CourseModal({
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [selectedCourseTypes, setSelectedCourseTypes] = useState<CourseType[]>(['MECHANICS']);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedCourseTypes, setSelectedCourseTypes] = useState<string[]>(['MECHANICS']);
+  const [primaryCourseType, setPrimaryCourseType] = useState<CourseType>('MECHANICS');
+  const [newCourseType, setNewCourseType] = useState('');
+  const [gallery, setGallery] = useState<string[]>([]);
+  const [imagePath, setImagePath] = useState('');
 
   useEffect(() => {
+    setPrimaryCourseType(detailQuery.data?.courseType ?? 'MECHANICS');
     setSelectedCourseTypes(
       detailQuery.data?.courseTypes?.length
         ? detailQuery.data.courseTypes
@@ -440,6 +479,11 @@ function CourseModal({
           ? [detailQuery.data.courseType]
           : ['MECHANICS'],
     );
+  }, [detailQuery.data, courseId]);
+
+  useEffect(() => {
+    setGallery(detailQuery.data?.gallery ?? []);
+    setImagePath(detailQuery.data?.image ?? '');
   }, [detailQuery.data, courseId]);
 
   if (!open) return null;
@@ -457,6 +501,17 @@ function CourseModal({
         .map((line) => line.trim())
         .filter(Boolean);
 
+    let contentSections: unknown[] = [];
+    let faqs: unknown[] = [];
+    try {
+      contentSections = JSON.parse(text('contentSections') || '[]');
+      faqs = JSON.parse(text('faqs') || '[]');
+      if (!Array.isArray(contentSections) || !Array.isArray(faqs)) throw new Error();
+    } catch {
+      setError('أقسام الدورة والأسئلة الشائعة يجب أن تكون بصيغة JSON صحيحة.');
+      return;
+    }
+
     if (selectedCourseTypes.length === 0) {
       setError('اختر نوع مسار واحداً على الأقل.');
       return;
@@ -465,8 +520,9 @@ function CourseModal({
     const payload: Record<string, unknown> = {
       slug: text('slug'),
       title: text('title'),
+      titleEnglish: nullable('titleEnglish'),
       shortTitle: text('shortTitle'),
-      courseType: selectedCourseTypes[0],
+      courseType: primaryCourseType,
       courseTypes: selectedCourseTypes,
       categoryId: nullable('categoryId'),
       instructorId: nullable('instructorId'),
@@ -477,8 +533,15 @@ function CourseModal({
       prerequisites: lines('prerequisites'),
       format: text('format'),
       note: text('note'),
-      image: text('image'),
+      image: imagePath || text('image'),
       imageAlt: text('imageAlt'),
+      gallery,
+      videos: lines('videos'),
+      contentSections,
+      faqs,
+      location: nullable('location'),
+      duration: nullable('duration'),
+      registrationOpen: fd.get('registrationOpen') === 'on',
       deliveryMode: text('deliveryMode'),
       price: text('price') ? Number(text('price')) : null,
       currency: text('currency') || 'SYP',
@@ -536,6 +599,9 @@ function CourseModal({
                 className={inputClass}
               />
             </Field>
+            <Field label="الاسم الإنجليزي">
+              <input name="titleEnglish" dir="ltr" defaultValue={detail?.titleEnglish ?? ''} className={inputClass} />
+            </Field>
             <Field label="المعرّف في الرابط * (أحرف لاتينية وأرقام وشرطات)">
               <input
                 name="slug"
@@ -547,14 +613,16 @@ function CourseModal({
             </Field>
             <Field label="نوع المسار *">
               <div className="space-y-2 rounded-lg border border-gray-200 p-3">
+                <label className="block text-xs font-medium text-gray-600">التصنيف الأساسي للتقارير</label>
+                <select value={primaryCourseType} onChange={(event) => setPrimaryCourseType(event.target.value as CourseType)} className={inputClass}>
+                  {COURSE_TYPES.map((value) => <option key={value} value={value}>{COURSE_TYPE_LABEL[value]}</option>)}
+                </select>
                 <button
                   type="button"
-                  onClick={() => setSelectedCourseTypes(
-                    selectedCourseTypes.length === COURSE_TYPES.length ? [] : COURSE_TYPES,
-                  )}
+                  onClick={() => setSelectedCourseTypes((current) => COURSE_TYPES.every((type) => current.includes(type)) ? [] : [...new Set([...current, ...COURSE_TYPES])])}
                   className="text-xs font-semibold text-flame-700 hover:text-flame-600"
                 >
-                  {selectedCourseTypes.length === COURSE_TYPES.length ? 'إلغاء تحديد الكل' : 'اختيار كل المسارات'}
+                  {COURSE_TYPES.every((type) => selectedCourseTypes.includes(type)) ? 'إلغاء تحديد الكل' : 'اختيار كل المسارات'}
                 </button>
                 <div className="grid grid-cols-2 gap-2">
                   {COURSE_TYPES.map((value) => (
@@ -572,6 +640,11 @@ function CourseModal({
                       {COURSE_TYPE_LABEL[value]}
                     </label>
                   ))}
+                  {selectedCourseTypes.filter((value) => !(COURSE_TYPES as string[]).includes(value)).map((value) => <label key={value} className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked onChange={() => setSelectedCourseTypes((current) => current.filter((item) => item !== value))} className="h-4 w-4 rounded border-gray-300 text-flame-600 focus:ring-flame-500" />{value}</label>)}
+                </div>
+                <div className="flex gap-2">
+                  <input value={newCourseType} onChange={(event) => setNewCourseType(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); const value = newCourseType.trim(); if (value && !selectedCourseTypes.includes(value)) setSelectedCourseTypes((current) => [...current, value]); setNewCourseType(''); } }} placeholder="أضف مساراً جديداً" className={inputClass} />
+                  <button type="button" onClick={() => { const value = newCourseType.trim(); if (value && !selectedCourseTypes.includes(value)) setSelectedCourseTypes((current) => [...current, value]); setNewCourseType(''); }} className="shrink-0 rounded-lg bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">إضافة</button>
                 </div>
               </div>
             </Field>
@@ -587,6 +660,12 @@ function CourseModal({
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label="الموقع">
+              <input name="location" defaultValue={detail?.location ?? ''} className={inputClass} />
+            </Field>
+            <Field label="المدة">
+              <input name="duration" defaultValue={detail?.duration ?? ''} placeholder="مثال: 6 أشهر" className={inputClass} />
             </Field>
             <Field label="نمط التدريب">
               <select
@@ -666,6 +745,10 @@ function CourseModal({
               />
               دورة مميزة في الصفحة الرئيسية
             </label>
+            <label className="flex items-center gap-2 self-end rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+              <input type="checkbox" name="registrationOpen" defaultChecked={detail?.registrationOpen ?? true} className="h-4 w-4 rounded border-gray-300 text-flame-600 focus:ring-flame-500" />
+              التسجيل مفتوح
+            </label>
           </div>
 
           <div className="grid gap-3">
@@ -734,9 +817,19 @@ function CourseModal({
                   name="image"
                   required
                   dir="ltr"
-                  defaultValue={detail?.image ?? '/images/courses/mechanics.webp'}
+                  value={imagePath || '/images/workshop/workshop-wide.webp'}
+                  onChange={(event) => setImagePath(event.target.value)}
                   className={inputClass}
                 />
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-xs" disabled={uploadingImage} onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setUploadingImage(true);
+                  try { setImagePath(await uploadImage(file, 'courses')); }
+                  catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : 'تعذر رفع الصورة'); }
+                  finally { setUploadingImage(false); event.target.value = ''; }
+                }} />
+                {imagePath && <img src={resolveMediaUrl(imagePath)} alt="معاينة صورة الدورة" className="mt-2 h-24 w-full rounded-lg object-cover" />}
               </Field>
               <Field label="النص البديل للصورة *">
                 <input
@@ -747,6 +840,30 @@ function CourseModal({
                 />
               </Field>
             </div>
+            <Field label="صور معرض الدورة (اختر عدة صور)">
+              <input type="file" multiple accept="image/png,image/jpeg,image/webp" className="block w-full text-xs" disabled={uploadingImage} onChange={async (event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (!files.length) return;
+                setUploadingImage(true);
+                try { const uploaded = await Promise.all(files.map((file) => uploadImage(file, 'courses'))); setGallery((current) => [...current, ...uploaded]); }
+                catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : 'تعذر رفع صور المعرض'); }
+                finally { setUploadingImage(false); event.target.value = ''; }
+              }} />
+              <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {gallery.map((path, index) => <div key={`${path}-${index}`} className="relative"><img src={resolveMediaUrl(path)} alt={`صورة المعرض ${index + 1}`} className="h-20 w-full rounded object-cover" /><button type="button" onClick={() => setGallery((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="absolute left-1 top-1 rounded bg-white/90 px-1.5 text-xs text-red-700">حذف</button></div>)}
+              </div>
+            </Field>
+            <Field label="روابط الفيديو (رابط في كل سطر)">
+              <textarea name="videos" rows={3} defaultValue={detail?.videos?.join('\n') ?? ''} className={inputClass} dir="ltr" />
+            </Field>
+            <Field label="أقسام صفحة الدورة (JSON قابل للتعديل)">
+              <textarea name="contentSections" rows={10} defaultValue={JSON.stringify(detail?.contentSections ?? [], null, 2)} className={`${inputClass} font-mono text-xs`} dir="ltr" />
+              <span className="mt-1 block text-[11px] text-gray-500">كل قسم: title وbody وitems كمصفوفة نصوص.</span>
+            </Field>
+            <Field label="الأسئلة الشائعة (JSON)">
+              <textarea name="faqs" rows={6} defaultValue={JSON.stringify(detail?.faqs ?? [], null, 2)} className={`${inputClass} font-mono text-xs`} dir="ltr" />
+              <span className="mt-1 block text-[11px] text-gray-500">كل سؤال: question وanswer.</span>
+            </Field>
           </div>
 
           {error && (

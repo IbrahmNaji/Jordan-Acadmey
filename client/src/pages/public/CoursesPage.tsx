@@ -16,13 +16,12 @@ import { usePublicCourses, usePublicInstructors } from '../../hooks/usePublic';
 import { site } from '../../content/site';
 import type { CourseType } from '../../types';
 
-const categories = [
-  { value: 'ALL', label: 'كل المسارات' },
-  { value: 'MECHANICS', label: 'ميكانيك' },
-  { value: 'ELECTRICAL', label: 'كهرباء' },
-  { value: 'DIAGNOSTICS', label: 'تشخيص' },
-  { value: 'HYBRID', label: 'هايبرد' },
-] as const;
+const COURSE_TYPE_LABEL: Record<CourseType, string> = {
+  MECHANICS: 'ميكانيك',
+  ELECTRICAL: 'كهرباء',
+  DIAGNOSTICS: 'تشخيص أعطال',
+  HYBRID: 'هايبرد',
+};
 
 export default function CoursesPage() {
   const coursesQuery = usePublicCourses();
@@ -32,6 +31,18 @@ export default function CoursesPage() {
   const category = searchParams.get('category') ?? 'ALL';
   const queryParam = searchParams.get('q') ?? '';
   const [search, setSearch] = useState(queryParam);
+  const categories = useMemo(() => {
+    const values = new Set((coursesQuery.data ?? []).flatMap((course) =>
+      course.courseTypes?.length ? course.courseTypes : [course.courseType],
+    ));
+    return [
+      { value: 'ALL', label: 'كل المسارات' },
+      ...Array.from(values, (value) => ({
+        value,
+        label: COURSE_TYPE_LABEL[value as CourseType] ?? value,
+      })),
+    ];
+  }, [coursesQuery.data]);
 
   useEffect(() => {
     setSearch(queryParam);
@@ -71,7 +82,7 @@ export default function CoursesPage() {
     const normalized = queryParam.trim().toLowerCase();
     return items.filter((course) => {
       const matchesCategory =
-        category === 'ALL' || (course.courseTypes?.length ? course.courseTypes : [course.courseType]).includes(category as CourseType);
+        category === 'ALL' || (course.courseTypes?.length ? course.courseTypes : [course.courseType]).includes(category);
       if (!matchesCategory) return false;
       if (!normalized) return true;
       const haystack = [

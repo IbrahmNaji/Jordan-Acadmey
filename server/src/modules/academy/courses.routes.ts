@@ -27,9 +27,10 @@ const createSchema = z
   .object({
     slug: slugSchema,
     title: z.string().trim().min(2).max(160),
+    titleEnglish: z.string().trim().max(200).nullable().optional(),
     shortTitle: z.string().trim().min(1).max(60),
     courseType: courseTypeEnum,
-    courseTypes: z.array(courseTypeEnum).min(1).max(4).optional(),
+    courseTypes: stringList(60, 20).min(1).optional(),
     categoryId: z.string().uuid().nullable().optional(),
     instructorId: z.string().uuid().nullable().optional(),
     tagline: z.string().trim().min(2).max(220),
@@ -41,6 +42,20 @@ const createSchema = z
     note: z.string().trim().min(2).max(500),
     image: z.string().trim().min(1).max(500),
     imageAlt: z.string().trim().min(1).max(200),
+    gallery: stringList(500, 30).optional(),
+    videos: z.array(z.string().trim().url().max(1000).refine((value) => /^https?:\/\//i.test(value))).max(20).optional(),
+    contentSections: z.array(z.object({
+      title: z.string().trim().min(1).max(120),
+      body: z.string().trim().max(5000).default(''),
+      items: stringList(500, 30).default([]),
+    }).strict()).max(30).optional(),
+    faqs: z.array(z.object({
+      question: z.string().trim().min(1).max(300),
+      answer: z.string().trim().min(1).max(3000),
+    }).strict()).max(30).optional(),
+    location: z.string().trim().max(180).nullable().optional(),
+    duration: z.string().trim().max(120).nullable().optional(),
+    registrationOpen: z.boolean().optional(),
     deliveryMode: deliveryModeEnum.optional(),
     price: z.number().positive().max(MONEY_MAX).nullable().optional(),
     currency: z
@@ -162,6 +177,7 @@ router.post(
         data: {
           slug: body.slug,
           title: body.title,
+          titleEnglish: body.titleEnglish ?? null,
           shortTitle: body.shortTitle,
           courseType: body.courseType,
           courseTypes: body.courseTypes ?? [body.courseType],
@@ -176,6 +192,13 @@ router.post(
           note: body.note,
           image: body.image,
           imageAlt: body.imageAlt,
+          gallery: body.gallery ?? [],
+          videos: body.videos ?? [],
+          contentSections: body.contentSections ?? [],
+          faqs: body.faqs ?? [],
+          location: body.location ?? null,
+          duration: body.duration ?? null,
+          registrationOpen: body.registrationOpen ?? true,
           deliveryMode: body.deliveryMode ?? 'ONSITE',
           price: body.price ?? null,
           currency: body.currency ?? 'SYP',
@@ -217,11 +240,11 @@ router.patch(
     const data: Prisma.CourseUpdateInput = {};
     if (body.slug !== undefined) data.slug = body.slug;
     if (body.title !== undefined) data.title = body.title;
+    if (body.titleEnglish !== undefined) data.titleEnglish = body.titleEnglish;
     if (body.shortTitle !== undefined) data.shortTitle = body.shortTitle;
     if (body.courseType !== undefined) data.courseType = body.courseType;
     if (body.courseTypes !== undefined) {
       data.courseTypes = body.courseTypes;
-      data.courseType = body.courseTypes[0];
     }
     if (body.categoryId !== undefined) {
       data.category = body.categoryId
@@ -244,6 +267,13 @@ router.patch(
     if (body.note !== undefined) data.note = body.note;
     if (body.image !== undefined) data.image = body.image;
     if (body.imageAlt !== undefined) data.imageAlt = body.imageAlt;
+    if (body.gallery !== undefined) data.gallery = body.gallery;
+    if (body.videos !== undefined) data.videos = body.videos;
+    if (body.contentSections !== undefined) data.contentSections = body.contentSections;
+    if (body.faqs !== undefined) data.faqs = body.faqs;
+    if (body.location !== undefined) data.location = body.location;
+    if (body.duration !== undefined) data.duration = body.duration;
+    if (body.registrationOpen !== undefined) data.registrationOpen = body.registrationOpen;
     if (body.deliveryMode !== undefined) {
       data.deliveryMode = body.deliveryMode;
     }
@@ -275,6 +305,33 @@ router.patch(
       }
       throw error;
     }
+  }),
+);
+
+router.delete(
+  '/:id',
+  requirePermission('courses:write'),
+  asyncHandler(async (req, res) => {
+    const id = entityId(req.params.id, 'COURSE_NOT_FOUND');
+    const existing = await prisma.course.findUnique({
+      where: { id },
+      include: { _count: { select: { enrollments: true, batches: true } } },
+    });
+    if (!existing) throw new AppError(404, 'COURSE_NOT_FOUND');
+    if (existing._count.enrollments > 0 || existing._count.batches > 0) {
+      throw new AppError(409, 'COURSE_HAS_HISTORY');
+    }
+    await prisma.course.delete({ where: { id } });
+    await recordAudit({
+      actor: req.user,
+      action: 'course.delete',
+      entityType: 'Course',
+      entityId: id,
+      summary: `حذف دورة ${existing.title}`,
+      metadata: { slug: existing.slug },
+      ip: requestIp(req),
+    });
+    res.status(204).send();
   }),
 );
 

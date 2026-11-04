@@ -1,6 +1,6 @@
 import api, { API_BASE } from './client';
 
-export type ImagePurpose = 'vehicles' | 'instructors' | 'parts';
+export type ImagePurpose = 'vehicles' | 'instructors' | 'parts' | 'courses';
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const maxBytes = 5 * 1024 * 1024;
 

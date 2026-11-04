@@ -8,7 +8,7 @@ import {
 } from '../../config/consent';
 import { notifyRoles } from '../../utils/notifications';
 
-const WEBSITE_SOURCE = 'الموقع الإلكتروني';
+const WEBSITE_SOURCE = 'Website';
 
 const CONTACT_METHOD_LABEL: Record<string, string> = {
   PHONE: 'اتصال هاتفي',
@@ -19,6 +19,7 @@ const CONTACT_METHOD_LABEL: Record<string, string> = {
 const PUBLIC_COURSE_SELECT = {
   slug: true,
   title: true,
+  titleEnglish: true,
   shortTitle: true,
   courseType: true,
   courseTypes: true,
@@ -30,7 +31,17 @@ const PUBLIC_COURSE_SELECT = {
   note: true,
   image: true,
   imageAlt: true,
+  gallery: true,
+  videos: true,
+  contentSections: true,
+  faqs: true,
+  location: true,
+  duration: true,
+  registrationOpen: true,
   featured: true,
+  price: true,
+  currency: true,
+  deliveryMode: true,
 } satisfies Prisma.CourseSelect;
 
 const PUBLIC_INSTRUCTOR_COURSES = {
@@ -123,11 +134,14 @@ export class PublicService {
     const course = input.courseSlug
       ? await prisma.course.findFirst({
           where: { slug: input.courseSlug, status: 'PUBLISHED' },
-          select: { title: true, courseType: true },
+          select: { title: true, courseType: true, registrationOpen: true },
         })
       : undefined;
     if (input.courseSlug && !course) {
       throw new AppError(400, 'INVALID_COURSE');
+    }
+    if (course && !course.registrationOpen) {
+      throw new AppError(400, 'COURSE_REGISTRATION_CLOSED');
     }
     if (input.contactMethod === 'EMAIL' && !input.email) {
       throw new AppError(400, 'EMAIL_REQUIRED');

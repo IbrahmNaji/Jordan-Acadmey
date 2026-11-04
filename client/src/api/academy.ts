@@ -46,6 +46,10 @@ export async function updateAcademyCourse(
   return data;
 }
 
+export async function deleteAcademyCourse(id: string) {
+  await api.delete(`/academy/courses/${id}`);
+}
+
 export async function fetchBatches(
   params: { courseId?: string; status?: AcademyBatch['status'] } = {},
 ) {

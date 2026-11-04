@@ -34,6 +34,7 @@ const createdUserIds = [];
 const createdLeadIds = [];
 const createdCustomerIds = [];
 const createdCourseIds = [];
+const createdMediaIds = [];
 const createdBatchIds = [];
 const createdEnrollmentIds = [];
 const createdVehicleIds = [];
@@ -55,12 +56,12 @@ function check(name, condition, detail) {
   }
 }
 
-async function api(method, url, { token, body, rawBody } = {}) {
+async function api(method, url, { token, body, rawBody, rawType } = {}) {
   const res = await fetch(`${BASE}${url}`, {
     method,
     headers: {
       ...(body !== undefined || rawBody !== undefined
-        ? { 'Content-Type': 'application/json' }
+        ? { 'Content-Type': rawType || 'application/json' }
         : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -259,6 +260,15 @@ async function main() {
     }
 
     console.log('\nAcademy catalog and administration');
+    const courseImage = await api('POST', '/media/courses', {
+      token: managerToken,
+      rawBody: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/8v8AAAAASUVORK5CYII=', 'base64'),
+      rawType: 'image/png',
+    });
+    const courseMediaId = courseImage.data?.url?.match(/^\/media\/([0-9a-f-]+)$/i)?.[1];
+    if (courseMediaId) createdMediaIds.push(courseMediaId);
+    const courseImageResponse = courseMediaId ? await fetch(`${BASE}${courseImage.data.url}`) : null;
+    check('manager uploads a course image', courseImage.status === 201 && courseImageResponse?.status === 200 && courseImageResponse.headers.get('content-type') === 'image/png', `status ${courseImage.status}/${courseImageResponse?.status}`);
     for (let i = 0; i < 4; i += 1) {
       const fixture = await prisma.course.create({
         data: {
@@ -281,6 +291,8 @@ async function main() {
       publicCourses.status === 200 && publicList.length >= 4,
       `status ${publicCourses.status} count ${publicList.length}`,
     );
+    const programCourse = publicList.find((course) => course.slug === 'professional-automotive-hybrid-technology-program');
+    check('professional hybrid program is published at the configured price', programCourse?.title === 'برنامج ميكانيك السيارات والأنظمة الهجينة' && Number(programCourse?.price) === 1250 && programCourse?.currency === 'USD', JSON.stringify(programCourse ?? null).slice(0, 150));
     check(
       'public catalog exposes no internal fields',
       publicList.length > 0 &&
@@ -289,7 +301,7 @@ async function main() {
             typeof course.slug === 'string' &&
             typeof course.title === 'string' &&
             !('status' in course) &&
-            !('price' in course),
+            typeof course.currency === 'string',
         ),
       JSON.stringify(publicList[0] ?? null).slice(0, 160),
     );
@@ -316,6 +328,7 @@ async function main() {
       title: 'دورة اختبار الدخان',
       shortTitle: 'اختبار',
       courseType: 'HYBRID',
+      courseTypes: ['HYBRID', 'مسار تجريبي مرن'],
       tagline: 'دورة اختبار مؤقتة تُحذف بعد الفحص',
       summary: 'بيانات اختبار مؤقتة لا تُعرض للعامة.',
       description: ['وصف اختباري مؤقت.'],
@@ -325,6 +338,14 @@ async function main() {
       image: '/images/courses/mechanics.jpg',
       imageAlt: 'صورة اختبارية',
       status: 'DRAFT',
+      titleEnglish: 'Smoke Automotive Program',
+      location: 'دمشق – سوريا',
+      duration: '6 أشهر',
+      gallery: ['/images/gallery/engine.webp'],
+      videos: ['https://example.com/training.mp4'],
+      contentSections: [{ title: 'نبذة عن البرنامج', body: 'محتوى قابل للتعديل', items: ['تطبيق'] }],
+      faqs: [{ question: 'هل التدريب حضوري؟', answer: 'نعم' }],
+      registrationOpen: true,
     };
     const agentCourseWrite = await api('POST', '/academy/courses', {
       token: agentToken,
@@ -346,6 +367,13 @@ async function main() {
       `status ${courseCreate.status}`,
     );
     const smokeCourseId = courseCreate.data?.id;
+    if (smokeCourseId) {
+      const courseEdit = await api('PATCH', `/academy/courses/${smokeCourseId}`, {
+        token: managerToken,
+        body: { titleEnglish: 'Updated Automotive Program', contentSections: [{ title: 'مقدمة معدلة', body: 'نص محدث', items: [] }], gallery: ['/images/gallery/engine.webp'] },
+      });
+      check('manager edits course content and gallery', courseEdit.status === 200 && courseEdit.data?.titleEnglish === 'Updated Automotive Program' && courseEdit.data?.gallery?.length === 1, `status ${courseEdit.status}`);
+    }
     const publicAfterDraft = await api('GET', '/public/courses');
     check(
       'draft course stays out of public catalog',
@@ -377,9 +405,52 @@ async function main() {
       check(
         'published course becomes public',
         publicAfterPublish.status === 200 &&
-          publicAfterPublish.data?.slug === smokeCourseSlug,
+          publicAfterPublish.data?.slug === smokeCourseSlug &&
+          publicAfterPublish.data?.titleEnglish === 'Updated Automotive Program' &&
+          publicAfterPublish.data?.gallery?.length === 1 &&
+          publicAfterPublish.data?.courseTypes?.includes('مسار تجريبي مرن') &&
+          publicAfterPublish.data?.contentSections?.[0]?.title === 'مقدمة معدلة' &&
+          publicAfterPublish.data?.faqs?.length === 1,
         `status ${publicAfterPublish.status}`,
       );
+
+      const hideCourse = await api('PATCH', `/academy/courses/${smokeCourseId}`, { token: managerToken, body: { status: 'DRAFT' } });
+      const hiddenDetail = await api('GET', `/public/courses/${encodeURIComponent(smokeCourseSlug)}`);
+      check('manager hides a published course', hideCourse.status === 200 && hideCourse.data?.status === 'DRAFT' && hiddenDetail.status === 404, `status ${hideCourse.status}/${hiddenDetail.status}`);
+      await api('PATCH', `/academy/courses/${smokeCourseId}`, { token: managerToken, body: { status: 'PUBLISHED' } });
+
+      const closeRegistration = await api('PATCH', `/academy/courses/${smokeCourseId}`, {
+        token: managerToken,
+        body: { registrationOpen: false },
+      });
+      check('manager closes course registration', closeRegistration.status === 200 && closeRegistration.data?.registrationOpen === false, `status ${closeRegistration.status}`);
+      const closedInquiry = await api('POST', '/public/inquiries', {
+        body: { fullName: 'Smoke Registration', phone: '+1999' + randomBytes(4).toString('hex').slice(0, 8), courseSlug: smokeCourseSlug, contactMethod: 'WHATSAPP', consent: true },
+      });
+      check('closed registration rejects inquiry', closedInquiry.status === 400 && closedInquiry.data?.error === 'COURSE_REGISTRATION_CLOSED', `status ${closedInquiry.status}`);
+      await api('PATCH', `/academy/courses/${smokeCourseId}`, { token: managerToken, body: { registrationOpen: true } });
+
+      const inquiryPhone = '+1999' + randomBytes(4).toString('hex').slice(0, 8);
+      const courseInquiry = await api('POST', '/public/inquiries', {
+        body: { fullName: 'Smoke Course Lead', phone: inquiryPhone, courseSlug: smokeCourseSlug, contactMethod: 'WHATSAPP', consent: true },
+      });
+      const courseLead = await prisma.lead.findFirst({
+        where: { phone: inquiryPhone },
+        select: { id: true, customerId: true, status: true, notes: true, source: { select: { name: true } } },
+      });
+      if (courseLead) createdLeadIds.push(courseLead.id);
+      if (courseLead?.customerId) createdCustomerIds.push(courseLead.customerId);
+      const leadEnrollment = courseLead ? await prisma.enrollment.findUnique({ where: { leadId: courseLead.id }, select: { id: true } }) : null;
+      check('course inquiry creates a Website lead without enrollment', courseInquiry.status === 201 && courseLead?.status === 'NEW' && courseLead.notes?.includes('دورة اختبار الدخان') && courseLead.source.name === 'Website' && !leadEnrollment, `status ${courseInquiry.status}`);
+
+      const agentCourseDelete = await api('DELETE', `/academy/courses/${smokeCourseId}`, { token: agentToken });
+      check('agent cannot delete courses', agentCourseDelete.status === 403, `status ${agentCourseDelete.status}`);
+
+      const emptyCourse = await api('POST', '/academy/courses', { token: managerToken, body: { ...smokeCourseBody, slug: `smoke-delete-${randomBytes(3).toString('hex')}`, title: 'دورة اختبار حذف', status: 'DRAFT' } });
+      if (emptyCourse.status === 201) createdCourseIds.push(emptyCourse.data.id);
+      const emptyCourseDelete = emptyCourse.data?.id ? await api('DELETE', `/academy/courses/${emptyCourse.data.id}`, { token: managerToken }) : null;
+      if (emptyCourse.status === 201) createdCourseIds.splice(createdCourseIds.indexOf(emptyCourse.data.id), 1);
+      check('manager deletes an unused course', emptyCourseDelete?.status === 204, `status ${emptyCourseDelete?.status}`);
 
       const agentBatchWrite = await api('POST', '/academy/batches', {
         token: agentToken,
@@ -429,6 +500,8 @@ async function main() {
         );
         const smokeEnrollmentId = firstEnrollment.data?.id;
         if (smokeEnrollmentId) createdEnrollmentIds.push(smokeEnrollmentId);
+        const protectedDelete = await api('DELETE', `/academy/courses/${smokeCourseId}`, { token: managerToken });
+        check('course with enrollments is protected from deletion', protectedDelete.status === 409, `status ${protectedDelete.status}`);
 
         const secondLeadId = massAssign.data?.id;
         if (secondLeadId) {
@@ -803,6 +876,7 @@ async function main() {
       if (createdCourseIds.length) {
         await prisma.course.deleteMany({ where: { id: { in: createdCourseIds } } });
       }
+      if (createdMediaIds.length) await prisma.mediaAsset.deleteMany({ where: { id: { in: createdMediaIds } } });
       if (createdVehicleIds.length) {
         const deals = await prisma.brokerageDeal.findMany({ where: { id: { in: createdDealIds } }, select: { id: true } });
         if (deals.length) {
@@ -824,7 +898,7 @@ async function main() {
       if(createdPartsRequestIds.length){await prisma.partsQuotation.deleteMany({where:{requestId:{in:createdPartsRequestIds}}});await prisma.partsRequest.deleteMany({where:{id:{in:createdPartsRequestIds}}});}
       if(requestCustomerIds.length)await prisma.consentRecord.deleteMany({where:{customerId:{in:requestCustomerIds}}});
       const operationEntityIds=[...createdWorkshopRequestIds,...createdPartsRequestIds];if(operationEntityIds.length){await prisma.notification.deleteMany({where:{entityId:{in:operationEntityIds}}});await prisma.auditLog.deleteMany({where:{entityId:{in:operationEntityIds}}});}
-      const publicSources = await prisma.campaignSource.findMany({ where: { name: { in: ['الموقع الإلكتروني', 'استفسار سوق المركبات'] }, leads: { none: {} } }, select: { id: true } });
+      const publicSources = await prisma.campaignSource.findMany({ where: { name: { in: ['Website', 'الموقع الإلكتروني', 'استفسار سوق المركبات'] }, leads: { none: {} } }, select: { id: true } });
       const newSourceIds = publicSources.filter((source) => !preservedSmokeSourceIds.has(source.id)).map((source) => source.id);
       if (newSourceIds.length) await prisma.campaignSource.deleteMany({ where: { id: { in: newSourceIds } } });
       if (createdCustomerIds.length) {

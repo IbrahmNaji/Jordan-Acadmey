@@ -92,6 +92,9 @@ function getSubmitError(error: unknown) {
     if (data?.error === 'INVALID_COURSE') {
       return 'المسار المحدد غير متاح حالياً. اختر مساراً آخر أو أرسل دون تحديد.';
     }
+    if (data?.error === 'COURSE_REGISTRATION_CLOSED') {
+      return 'التسجيل في هذه الدورة مغلق حالياً. تواصل معنا لمعرفة موعد الدفعة القادمة.';
+    }
   }
   return 'تعذّر إرسال الاستفسار. أعد المحاولة بعد قليل.';
 }

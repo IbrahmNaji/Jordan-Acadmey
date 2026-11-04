@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import type { PublicCourse } from '../../types/public';
+import { resolveMediaUrl } from '../../api/media';
 
 export default function CourseCard({ course }: { course: PublicCourse }) {
   return (
     <article className="public-card group flex h-full flex-col">
       <Link to={`/courses/${course.slug}`} className="relative aspect-[16/10] overflow-hidden bg-ink-800" aria-label={`عرض تفاصيل ${course.title}`}>
           <img
-            src={course.image}
+            src={resolveMediaUrl(course.image)}
             alt={course.imageAlt}
             loading="lazy"
             decoding="async"
@@ -31,6 +32,7 @@ export default function CourseCard({ course }: { course: PublicCourse }) {
           <p className="mt-2 line-clamp-2 text-[13px] leading-7 text-steel-600">
             {course.summary}
           </p>
+          {course.price != null && <p className="mt-3 font-display text-sm font-extrabold text-flame-700">{Number(course.price).toLocaleString('en-US')} {course.currency || 'USD'}</p>}
 
           <ul className="mt-4 flex flex-wrap gap-1.5">
             {course.focus.slice(0, 2).map((topic) => (
@@ -43,7 +45,7 @@ export default function CourseCard({ course }: { course: PublicCourse }) {
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ink-900/10 pt-4">
             <Link to={`/courses/${course.slug}`} className="inline-flex min-h-10 items-center gap-2 font-display text-xs font-bold text-ink-900 transition-colors group-hover:text-flame-700">عرض التفاصيل <ArrowLeft size={15} aria-hidden="true" className="text-flame-600 transition-transform duration-300 group-hover:-translate-x-1"/></Link>
-            <Link to="/contact" className="inline-flex min-h-10 items-center rounded-lg bg-ink-900 px-3 text-[11px] font-bold text-white transition-colors hover:bg-flame-500 hover:text-white">استفسر عن الدورة</Link>
+            <Link to={`/courses/${course.slug}#inquiry`} className="inline-flex min-h-10 items-center rounded-lg bg-ink-900 px-3 text-[11px] font-bold text-white transition-colors hover:bg-flame-500 hover:text-white">{course.registrationOpen === false ? 'تفاصيل الدورة' : 'سجل الآن'}</Link>
           </div>
         </div>
     </article>

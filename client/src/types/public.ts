@@ -5,7 +5,8 @@ export interface PublicCourse {
   title: string;
   shortTitle: string;
   courseType: CourseType;
-  courseTypes?: CourseType[];
+  courseTypes?: string[];
+  titleEnglish?: string | null;
   tagline: string;
   summary: string;
   description: string[];
@@ -15,6 +16,16 @@ export interface PublicCourse {
   image: string;
   imageAlt: string;
   featured: boolean;
+  price?: string | number | null;
+  currency?: string;
+  deliveryMode?: 'ONSITE' | 'ONLINE' | 'HYBRID';
+  gallery?: string[];
+  videos?: string[];
+  contentSections?: Array<{ title: string; body: string; items: string[] }>;
+  faqs?: Array<{ question: string; answer: string }>;
+  location?: string | null;
+  duration?: string | null;
+  registrationOpen?: boolean;
 }
 
 export interface PublicInstructor {
